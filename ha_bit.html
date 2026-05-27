@@ -81,12 +81,20 @@
     }
     return cv.toDataURL('image/png');
   }
+  // Recreate the <link> nodes each time — browsers cache favicons by element,
+  // so simply changing .href often won't visually refresh the icon.
+  function setLink(id, rel, type, href) {
+    var old = document.getElementById(id);
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var l = document.createElement('link');
+    l.id = id; l.rel = rel; if (type) l.type = type; l.href = href;
+    document.head.appendChild(l);
+  }
   function apply(e) {
     // prefer count passed directly in the event so there's no localStorage timing race
     var n = (e && e.detail != null) ? e.detail : count();
-    var i180 = draw(180, n), i32 = draw(32, n);
-    document.getElementById('ha-apple-icon').href = i180;
-    document.getElementById('ha-favicon').href    = i32;
+    setLink('ha-apple-icon', 'apple-touch-icon', '',          draw(180, n));
+    setLink('ha-favicon',    'icon',             'image/png', draw(32,  n));
   }
   apply();
   window.addEventListener('habitschanged', apply);
@@ -287,8 +295,10 @@ function DetailScreen({ habit, onBack, onToggle, accent, onDelete, onEdit, onExt
 
 // ─── Screen: New / Edit ───────────────────────────────────────────────────
 function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDuration=365, mode='create' }) {
-  const [name,     setName]     = useState(initialName);
-  const [duration, setDuration] = useState(initialDuration);
+  const presets = [{label:'30',v:30},{label:'50',v:50},{label:'100',v:100},{label:'365',v:365}];
+  const [name,       setName]       = useState(initialName);
+  const [duration,   setDuration]   = useState(initialDuration);
+  const [customMode, setCustomMode] = useState(!presets.some(p=>p.v===initialDuration));
   const inputRef = useRef(null);
   useEffect(()=>{ setTimeout(()=>inputRef.current?.focus(), 60); },[]);
 
@@ -300,8 +310,6 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
       else { await navigator.clipboard?.writeText(`${text} ${url}`); alert('Invite link copied to clipboard'); }
     } catch(e){}
   };
-
-  const presets = [{label:'30',v:30},{label:'50',v:50},{label:'100',v:100},{label:'365',v:365}];
 
   return (
     <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans }}>
@@ -320,24 +328,44 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
         <div style={{ fontSize:11, letterSpacing:2, opacity:0.45, marginBottom:16 }}>NAME</div>
         <input ref={inputRef} value={name} onChange={e=>setName(e.target.value)}
           placeholder="what will you do?"
+          autoCapitalize="none" autoCorrect="off" spellCheck={false}
           style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px solid rgba(51,51,51,0.18)', color:INK, fontFamily:sans, fontSize:22, padding:'8px 0 14px', outline:'none' }}
         />
       </div>
 
       {/* Duration */}
       <div style={{ padding:'40px 24px 0' }}>
-        <div style={{ fontSize:11, letterSpacing:2, opacity:0.45, marginBottom:16 }}>FOR HOW MANY DAYS</div>
-        <div style={{ display:'flex', gap:8 }}>
-          {presets.map(p=>(
-            <button key={p.v} onClick={()=>setDuration(p.v)} style={{
-              flex:1, height:52,
-              background:duration===p.v?INK:'transparent',
-              color:      duration===p.v?'#fff':INK,
-              border:`1px solid ${duration===p.v?'#fff':'rgba(51,51,51,0.16)'}`,
-              borderRadius:0, fontFamily:sans, fontSize:14, cursor:'pointer',
-            }}>{p.label}</button>
-          ))}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:16 }}>
+          <div style={{ fontSize:11, letterSpacing:2, opacity:0.45 }}>FOR HOW MANY DAYS</div>
+          <button onClick={()=>setCustomMode(true)} style={{
+            background:'none', border:'none', color:INK, fontFamily:sans,
+            fontSize:11, letterSpacing:2, textTransform:'uppercase',
+            opacity:customMode?0.9:0.45, padding:0, cursor:'pointer',
+          }}>OTHER</button>
         </div>
+        {customMode ? (
+          <input type="number" inputMode="numeric" min="1" value={duration}
+            onChange={e=>setDuration(Math.max(1, parseInt(e.target.value||'1',10)||1))}
+            placeholder="days"
+            style={{
+              width:'100%', height:52, background:INK, color:'#fff',
+              border:'1px solid #fff', borderRadius:0, fontFamily:sans,
+              fontSize:14, textAlign:'center', outline:'none',
+            }}
+          />
+        ) : (
+          <div style={{ display:'flex', gap:8 }}>
+            {presets.map(p=>(
+              <button key={p.v} onClick={()=>{ setDuration(p.v); setCustomMode(false); }} style={{
+                flex:1, height:52,
+                background:duration===p.v?INK:'transparent',
+                color:      duration===p.v?'#fff':INK,
+                border:`1px solid ${duration===p.v?'#fff':'rgba(51,51,51,0.16)'}`,
+                borderRadius:0, fontFamily:sans, fontSize:14, cursor:'pointer',
+              }}>{p.label}</button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ flex:1 }} />
