@@ -19,37 +19,46 @@
 
 <style>
   *, *::before, *::after { box-sizing: border-box; }
-  html { margin: 0; padding: 0; background: #F1F2F6; }
+  html { margin: 0; padding: 0; background: #F1F2F6; height: 100%; }
   body {
     margin: 0; padding: 0;
     background: #F1F2F6;
     overflow: hidden;
+    height: 100%;
     font-family: 'Inter', -apple-system, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  /* Fixed root covers the entire physical screen — fills behind notch/status bar */
+  /* ── Whole-device background: solid color + film grain, FIXED so it covers
+        the entire physical screen including behind the status bar / notch.
+        Everything above is transparent, so there is never a seam. ── */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+    background: #F1F2F6;
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+    opacity: 0.5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.15 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-size: 200px 200px;
+  }
+  /* App content sits above the global grain, transparent so it shows through */
   #root {
     position: fixed;
     inset: 0;
     overflow: hidden;
-    background: #F1F2F6;
+    background: transparent;
+    z-index: 1;
   }
   /* Safe-area bottom helper used by all bottom buttons */
   .ha-bottom { padding-bottom: max(38px, calc(22px + env(safe-area-inset-bottom, 0px))); }
   * { -webkit-tap-highlight-color: transparent; }
   button { font-family: inherit; }
 
-  /* Film-grain noise overlay */
   .noise-bg { position: relative; }
-  .noise-bg::before {
-    content: "";
-    position: absolute; inset: 0;
-    pointer-events: none; z-index: 0;
-    opacity: 0.5; mix-blend-mode: multiply;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.15 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-    background-size: 200px 200px;
-  }
-  .noise-bg > * { position: relative; z-index: 1; }
 
 </style>
 </head>
@@ -190,7 +199,7 @@ function MiniGrid({ habit, cols=30, dotSize=4, gap=2, accent='#333', dim='rgba(5
 // ─── Screen: Home ─────────────────────────────────────────────────────────
 function HomeScreen({ habits, onOpen, onAdd, accent }) {
   return (
-    <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans, position:'relative' }}>
+    <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:'transparent', color:INK, fontFamily:sans, position:'relative' }}>
 
       {/* Header */}
       <div style={{ padding:'20px 24px 12px', paddingTop:'calc(env(safe-area-inset-top, 0px) + 20px)', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
@@ -251,7 +260,7 @@ function DetailScreen({ habit, onBack, onToggle, accent, onDelete, onEdit, onExt
   else                        { cols=10; dotSize=18; gap=10; }
 
   return (
-    <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans, position:'relative' }}>
+    <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:'transparent', color:INK, fontFamily:sans, position:'relative' }}>
 
       {/* Top bar */}
       <div style={{ padding:'20px 24px 12px', paddingTop:'calc(env(safe-area-inset-top, 0px) + 20px)', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
@@ -294,13 +303,14 @@ function DetailScreen({ habit, onBack, onToggle, accent, onDelete, onEdit, onExt
 }
 
 // ─── Screen: New / Edit ───────────────────────────────────────────────────
-function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDuration=365, mode='create' }) {
+function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDuration=null, mode='create' }) {
   const presets = [{label:'30',v:30},{label:'50',v:50},{label:'100',v:100},{label:'365',v:365}];
   const [name,       setName]       = useState(initialName);
   const [duration,   setDuration]   = useState(initialDuration);
-  const [customMode, setCustomMode] = useState(!presets.some(p=>p.v===initialDuration));
+  const [customMode, setCustomMode] = useState(initialDuration!=null && !presets.some(p=>p.v===initialDuration));
   const inputRef = useRef(null);
   useEffect(()=>{ setTimeout(()=>inputRef.current?.focus(), 60); },[]);
+  const ready = name.trim() && duration > 0;
 
   const share = async () => {
     const url = `https://ha-bit.app/invite/${Math.random().toString(36).slice(2,9)}`;
@@ -312,7 +322,7 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
   };
 
   return (
-    <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans }}>
+    <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:'transparent', color:INK, fontFamily:sans }}>
 
       {/* Header */}
       <div style={{ padding:'20px 24px 12px', paddingTop:'calc(env(safe-area-inset-top, 0px) + 20px)', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
@@ -335,37 +345,42 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
 
       {/* Duration */}
       <div style={{ padding:'40px 24px 0' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:16 }}>
-          <div style={{ fontSize:11, letterSpacing:2, opacity:0.45 }}>FOR HOW MANY DAYS</div>
-          <button onClick={()=>setCustomMode(true)} style={{
-            background:'none', border:'none', color:INK, fontFamily:sans,
-            fontSize:11, letterSpacing:2, textTransform:'uppercase',
-            opacity:customMode?0.9:0.45, padding:0, cursor:'pointer',
-          }}>OTHER</button>
-        </div>
-        {customMode ? (
-          <input type="number" inputMode="numeric" min="1" value={duration}
-            onChange={e=>setDuration(Math.max(1, parseInt(e.target.value||'1',10)||1))}
-            placeholder="days"
-            style={{
-              width:'100%', height:52, background:INK, color:'#fff',
-              border:'1px solid #fff', borderRadius:0, fontFamily:sans,
-              fontSize:14, textAlign:'center', outline:'none',
-            }}
-          />
-        ) : (
-          <div style={{ display:'flex', gap:8 }}>
-            {presets.map(p=>(
-              <button key={p.v} onClick={()=>{ setDuration(p.v); setCustomMode(false); }} style={{
-                flex:1, height:52,
-                background:duration===p.v?INK:'transparent',
-                color:      duration===p.v?'#fff':INK,
-                border:`1px solid ${duration===p.v?'#fff':'rgba(51,51,51,0.16)'}`,
-                borderRadius:0, fontFamily:sans, fontSize:14, cursor:'pointer',
+        <div style={{ fontSize:11, letterSpacing:2, opacity:0.45, marginBottom:16 }}>FOR HOW MANY DAYS</div>
+        <div style={{ display:'flex', gap:8 }}>
+          {presets.map(p=>{
+            const sel = !customMode && duration===p.v;
+            return (
+              <button key={p.v} onClick={()=>{ setCustomMode(false); setDuration(p.v); }} style={{
+                flex:1, minWidth:0, height:52,
+                background: sel?INK:'transparent',
+                color:      sel?'#fff':INK,
+                border:`1px solid ${sel?'#fff':'rgba(51,51,51,0.16)'}`,
+                borderRadius:0, fontFamily:sans, fontSize:16, cursor:'pointer',
               }}>{p.label}</button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+          {/* OTHER — only this box turns into a dashed, empty-fill custom input */}
+          {customMode ? (
+            <input autoFocus type="number" inputMode="numeric" min="1" value={duration||''}
+              onChange={e=>{ const v=parseInt(e.target.value||'0',10); setDuration(v>0?v:''); }}
+              placeholder="#"
+              style={{
+                flex:1, minWidth:0, width:0, height:52,
+                background:'transparent', color:INK,
+                border:'1px dashed rgba(51,51,51,0.45)', borderRadius:0,
+                fontFamily:sans, fontSize:16, textAlign:'center', outline:'none',
+                WebkitAppearance:'none', margin:0,
+              }}
+            />
+          ) : (
+            <button onClick={()=>{ setCustomMode(true); setDuration(''); }} style={{
+              flex:1, minWidth:0, height:52,
+              background:'transparent', color:INK,
+              border:'1px dashed rgba(51,51,51,0.45)', borderRadius:0,
+              fontFamily:sans, fontSize:12, letterSpacing:1, cursor:'pointer',
+            }}>OTHER</button>
+          )}
+        </div>
       </div>
 
       <div style={{ flex:1 }} />
@@ -373,14 +388,14 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
 
       {/* Primary action */}
       <div className="ha-bottom" style={{ paddingLeft:24, paddingRight:24 }}>
-        <button disabled={!name.trim()} onClick={()=>name.trim()&&onCreate(name.trim(),duration)} style={{
+        <button disabled={!ready} onClick={()=>ready&&onCreate(name.trim(),duration)} style={{
           width:'100%', height:52,
-          background:name.trim()?INK:'transparent',
-          color:      name.trim()?'#fff':INK,
-          border:`1px solid ${name.trim()?INK:'rgba(51,51,51,0.18)'}`,
+          background:ready?INK:'transparent',
+          color:      ready?'#fff':INK,
+          border:`1px solid ${ready?INK:'rgba(51,51,51,0.18)'}`,
           borderRadius:0, fontFamily:sans, fontSize:13, letterSpacing:2,
-          cursor:name.trim()?'pointer':'default',
-          opacity:name.trim()?1:0.5,
+          cursor:ready?'pointer':'default',
+          opacity:ready?1:0.5,
           transition:'all 160ms ease',
         }}>{mode==='edit'?'SAVE':'CREATE'}</button>
       </div>
@@ -469,7 +484,7 @@ function App() {
   }
 
   return (
-    <div style={{ height:'100%', overflow:'hidden', background:BG, fontFamily:sans, position:'relative' }}>
+    <div style={{ height:'100%', overflow:'hidden', background:'transparent', fontFamily:sans, position:'relative' }}>
       <ScreenSwitcher screenKey={screenKey}>{screen}</ScreenSwitcher>
     </div>
   );
