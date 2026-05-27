@@ -3,39 +3,434 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ha_bit — App Icon</title>
+<title>ha_bit</title>
+
+<!-- PWA — "Add to Home Screen" on iOS opens fullscreen as a standalone app -->
+<meta name="apple-mobile-web-app-capable"            content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style"   content="default" />
+<meta name="apple-mobile-web-app-title"              content="ha_bit" />
+<meta name="theme-color"                             content="#F1F2F6" />
+<link id="ha-apple-icon" rel="apple-touch-icon" />
+<link id="ha-favicon"    rel="icon" type="image/png" />
+
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" />
+<link rel="stylesheet"  href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" />
+
 <style>
-  html, body { margin: 0; padding: 0; background: #d8dae0; }
-  body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #F1F2F6; height: 100%; overflow: hidden; }
+  body { font-family: 'Inter', -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
   * { -webkit-tap-highlight-color: transparent; }
   button { font-family: inherit; }
 
-  /* Same film-grain overlay as the habit tracker app */
+  /* Film-grain noise overlay */
   .noise-bg { position: relative; }
   .noise-bg::before {
     content: "";
     position: absolute; inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.5;
-    mix-blend-mode: multiply;
+    pointer-events: none; z-index: 0;
+    opacity: 0.5; mix-blend-mode: multiply;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.15 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
     background-size: 200px 200px;
   }
   .noise-bg > * { position: relative; z-index: 1; }
+
 </style>
 </head>
+
 <body>
 <div id="root"></div>
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<!-- ── Dynamic icon: reads habit count from localStorage, draws dot-grid icon ── -->
+<script>
+(function () {
+  var BG = '#F1F2F6', INK = '#333333', KEY = 'habitsv1';
+  function count() {
+    try { var r = localStorage.getItem(KEY); if (r) return Math.max(1, JSON.parse(r).length); } catch(e){}
+    return 4;
+  }
+  function draw(size) {
+    var cv = document.createElement('canvas'); cv.width = cv.height = size;
+    var ctx = cv.getContext('2d');
+    ctx.fillStyle = BG; ctx.fillRect(0, 0, size, size);
+    var n = count(), cols = Math.max(1, Math.ceil(Math.sqrt(n))), rows = Math.ceil(n / cols);
+    var dot = size * 0.13, gap = dot * 0.55;
+    var gw = cols * dot + (cols-1)*gap, gh = rows * dot + (rows-1)*gap;
+    var sx = (size-gw)/2, sy = (size-gh)/2;
+    ctx.fillStyle = INK;
+    var i = 0;
+    outer: for (var r=0; r<rows; r++) for (var c=0; c<cols; c++) {
+      if (i++ >= n) break outer;
+      ctx.beginPath(); ctx.arc(sx+c*(dot+gap)+dot/2, sy+r*(dot+gap)+dot/2, dot/2, 0, Math.PI*2); ctx.fill();
+    }
+    return cv.toDataURL('image/png');
+  }
+  function apply() {
+    var i180 = draw(180), i32 = draw(32);
+    document.getElementById('ha-apple-icon').href = i180;
+    document.getElementById('ha-favicon').href    = i32;
+  }
+  apply();
+  window.addEventListener('habitschanged', apply);
+})();
+</script>
 
-<script type="text/babel" src="ios-frame.jsx"></script>
-<script type="text/babel" src="icon.jsx"></script>
+<!-- ── React (production builds — faster than dev) ── -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef } = React;
+
+// ─── Design tokens ────────────────────────────────────────────────────────
+const sans   = `'Inter', -apple-system, system-ui, sans-serif`;
+const BG     = '#F1F2F6';
+const INK    = '#333';
+const MUTED  = 'rgba(51,51,51,0.5)';
+
+// ─── Date helpers ─────────────────────────────────────────────────────────
+const TODAY   = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+const dayKey  = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const fmtDate = (k) => { const [,m,d] = k.split('-'); return `${m}.${d}`; };
+
+// ─── Data helpers ─────────────────────────────────────────────────────────
+function makeHabit(name, total=365, startOffset=0, doneCount=0, sharedWith=null) {
+  const start = addDays(TODAY, -startOffset);
+  const done  = new Set();
+  for (let i=0; i<doneCount; i++) done.add(dayKey(addDays(TODAY,-i)));
+  return { id: Math.random().toString(36).slice(2,9), name, total, start: dayKey(start), done, sharedWith };
+}
+
+const SEEDS = [
+  makeHabit('read 20 pages',   365, 142, 128, 'Alex'),
+  makeHabit('cold shower',     100,  38,  31),
+  makeHabit('no sugar',         30,  12,   9, 'Sam'),
+  makeHabit('write 500 words', 365, 142,  88),
+];
+
+// ─── localStorage ─────────────────────────────────────────────────────────
+const STORAGE_KEY = 'habitsv1';
+
+function save(habits) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(habits.map(h=>({...h,done:[...h.done]})))); } catch(e){}
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw).map(h=>({...h,done:new Set(h.done)}));
+  } catch(e) { return null; }
+}
+
+// ─── Dot grid (detail view) ───────────────────────────────────────────────
+function DotGrid({ habit, cols=16, dotSize=14, gap=8, accent='#333', dim='rgba(51,51,51,0.18)', onTap }) {
+  const startDate = useMemo(()=>{ const [y,m,d]=habit.start.split('-').map(Number); return new Date(y,m-1,d); },[habit.start]);
+  const dots = [];
+  for (let i=0; i<habit.total; i++) {
+    const d=addDays(startDate,i), k=dayKey(d);
+    dots.push({ i, k, isFuture:d>TODAY, isToday:k===dayKey(TODAY), isDone:habit.done.has(k) });
+  }
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols},${dotSize}px)`, gap:`${gap}px`, justifyContent:'center' }}>
+      {dots.map(dt=>(
+        <button key={dt.i} onClick={()=>onTap&&onTap(dt)} title={dt.k} style={{
+          width:dotSize, height:dotSize, borderRadius:'50%',
+          background: dt.isDone ? accent : dim,
+          border: dt.isToday&&!dt.isDone ? `1px solid ${accent}` : 'none',
+          padding:0, cursor:dt.isFuture?'default':'pointer',
+          opacity:dt.isFuture?0.45:1,
+          transition:'background 180ms ease',
+        }}/>
+      ))}
+    </div>
+  );
+}
+
+// ─── Mini dot strip (home list) ───────────────────────────────────────────
+function MiniGrid({ habit, cols=30, dotSize=4, gap=2, accent='#333', dim='rgba(51,51,51,0.14)' }) {
+  const startDate = useMemo(()=>{ const [y,m,d]=habit.start.split('-').map(Number); return new Date(y,m-1,d); },[habit.start]);
+  const step = Math.max(1,Math.ceil(habit.total/(cols*6)));
+  const cells=[];
+  for (let i=0; i<habit.total; i+=step) cells.push(habit.done.has(dayKey(addDays(startDate,i))));
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols},${dotSize}px)`, gap:`${gap}px` }}>
+      {cells.map((on,i)=>(<div key={i} style={{ width:dotSize, height:dotSize, borderRadius:'50%', background:on?accent:dim }}/>))}
+    </div>
+  );
+}
+
+// ─── Screen: Home ─────────────────────────────────────────────────────────
+function HomeScreen({ habits, onOpen, onAdd, accent }) {
+  return (
+    <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans, position:'relative' }}>
+
+      {/* Header */}
+      <div style={{ padding:'64px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+        <div style={{ fontSize:13, letterSpacing:1.5, opacity:0.55 }}>HA_BITS</div>
+        <div style={{ fontSize:13, opacity:0.55 }}>{habits.length}</div>
+      </div>
+
+      {/* Habit list */}
+      <div style={{ flex:1, overflowY:'auto', padding:'8px 0 100px' }}>
+        {habits.map(h=>{
+          const doneTotal = h.done.size;
+          return (
+            <button key={h.id} onClick={()=>onOpen(h.id)} style={{
+              width:'100%', background:'transparent', border:'none',
+              borderTop:'1px solid rgba(51,51,51,0.06)',
+              padding:'20px 24px', display:'flex', flexDirection:'column', gap:12,
+              textAlign:'left', cursor:'pointer', fontFamily:sans, color:INK,
+            }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+                <div style={{ fontSize:16, flex:1, minWidth:0 }}>{h.name}</div>
+                {/* Right column — explicit right-align so it stays put cross-browser */}
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2, textAlign:'right', flexShrink:0 }}>
+                  <div style={{ fontSize:12, opacity:0.45 }}>{doneTotal}/{h.total}</div>
+                  <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase' }}>Started {fmtDate(h.start)}</div>
+                  {h.sharedWith && (
+                    <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase' }}>with {h.sharedWith}</div>
+                  )}
+                </div>
+              </div>
+              <MiniGrid habit={h} accent={accent} />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* New habit button */}
+      <button onClick={onAdd} style={{
+        position:'absolute', left:24, right:24, bottom:38, height:52,
+        background:'transparent', color:INK,
+        border:'1px solid rgba(51,51,51,0.18)', borderRadius:0,
+        fontFamily:sans, fontSize:13, letterSpacing:2, cursor:'pointer',
+      }}>+ NEW HABIT</button>
+    </div>
+  );
+}
+
+// ─── Screen: Habit Detail ─────────────────────────────────────────────────
+function DetailScreen({ habit, onBack, onToggle, accent, onDelete, onEdit, onExtend }) {
+  const doneCount = habit.done.size;
+  const pct       = Math.round((doneCount/habit.total)*100);
+  const completed = doneCount >= habit.total;
+  const todayDone = habit.done.has(dayKey(TODAY));
+
+  let cols, dotSize, gap;
+  if      (habit.total > 300) { cols=20; dotSize=10; gap=6; }
+  else if (habit.total > 150) { cols=16; dotSize=12; gap=7; }
+  else if (habit.total >  60) { cols=12; dotSize=14; gap=9; }
+  else                        { cols=10; dotSize=18; gap=10; }
+
+  return (
+    <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans, position:'relative' }}>
+
+      {/* Top bar */}
+      <div style={{ padding:'64px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+        <button onClick={onBack}   style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer' }}>←</button>
+        <button onClick={onEdit}   style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer', textTransform:'uppercase' }}>{habit.name}</button>
+        <button onClick={onDelete} style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer' }}>×</button>
+      </div>
+
+      {/* Big number */}
+      <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
+        <div style={{ color:INK, fontFamily:sans, fontSize:80, fontWeight:400, lineHeight:'160px', letterSpacing:'2px' }}>{doneCount}</div>
+        <div style={{ fontSize:12, color:MUTED, marginTop:-8, letterSpacing:1, textTransform:'uppercase' }}>days building the habit · {pct}%</div>
+        <div style={{ fontSize:11, color:MUTED, marginTop:8, letterSpacing:1.5, textTransform:'uppercase' }}>
+          Started {fmtDate(habit.start)}{habit.sharedWith?` with ${habit.sharedWith}`:''}
+        </div>
+      </div>
+
+      {/* Dot grid */}
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px 8px' }}>
+        <DotGrid habit={habit} cols={cols} dotSize={dotSize} gap={gap} accent={accent}
+          onTap={dt=>!dt.isFuture&&onToggle(dt.k)} />
+      </div>
+
+      {/* Action button */}
+      <div style={{ padding:'0 24px 38px' }}>
+        <button
+          onClick={()=>completed?onExtend():onToggle(dayKey(TODAY))}
+          style={{
+            width:'100%', height:52,
+            background:(todayDone&&!completed)?INK:'transparent',
+            color:      (todayDone&&!completed)?'#fff':INK,
+            border:`1px solid ${(todayDone&&!completed)?INK:'rgba(51,51,51,0.18)'}`,
+            borderRadius:0, fontFamily:sans, fontSize:13, letterSpacing:2,
+            cursor:'pointer', transition:'all 160ms ease',
+          }}
+        >{completed?'+ EXTEND':todayDone?'✓ DONE TODAY':'MARK TODAY'}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Screen: New / Edit ───────────────────────────────────────────────────
+function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDuration=365, mode='create' }) {
+  const [name,     setName]     = useState(initialName);
+  const [duration, setDuration] = useState(initialDuration);
+  const inputRef = useRef(null);
+  useEffect(()=>{ setTimeout(()=>inputRef.current?.focus(), 60); },[]);
+
+  const share = async () => {
+    const url = `https://ha-bit.app/invite/${Math.random().toString(36).slice(2,9)}`;
+    const text = `Join me in building "${name.trim()||'a new habit'}" — let's keep each other accountable.`;
+    try {
+      if (navigator.share) await navigator.share({ title:'ha_bit', text, url });
+      else { await navigator.clipboard?.writeText(`${text} ${url}`); alert('Invite link copied to clipboard'); }
+    } catch(e){}
+  };
+
+  const presets = [{label:'30',v:30},{label:'50',v:50},{label:'100',v:100},{label:'365',v:365}];
+
+  return (
+    <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans }}>
+
+      {/* Header */}
+      <div style={{ padding:'64px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+        <button onClick={onCancel} style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer' }}>←</button>
+        {mode==='edit'
+          ? <button onClick={onDelete} style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer', textTransform:'uppercase' }}>Delete</button>
+          : <button onClick={share}    style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer', textTransform:'uppercase' }}>Share Habit</button>
+        }
+      </div>
+
+      {/* Name */}
+      <div style={{ padding:'64px 24px 0' }}>
+        <div style={{ fontSize:11, letterSpacing:2, opacity:0.45, marginBottom:16 }}>NAME</div>
+        <input ref={inputRef} value={name} onChange={e=>setName(e.target.value)}
+          placeholder="what will you do?"
+          style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px solid rgba(51,51,51,0.18)', color:INK, fontFamily:sans, fontSize:22, padding:'8px 0 14px', outline:'none' }}
+        />
+      </div>
+
+      {/* Duration */}
+      <div style={{ padding:'40px 24px 0' }}>
+        <div style={{ fontSize:11, letterSpacing:2, opacity:0.45, marginBottom:16 }}>FOR HOW MANY DAYS</div>
+        <div style={{ display:'flex', gap:8 }}>
+          {presets.map(p=>(
+            <button key={p.v} onClick={()=>setDuration(p.v)} style={{
+              flex:1, height:52,
+              background:duration===p.v?INK:'transparent',
+              color:      duration===p.v?'#fff':INK,
+              border:`1px solid ${duration===p.v?'#fff':'rgba(51,51,51,0.16)'}`,
+              borderRadius:0, fontFamily:sans, fontSize:14, cursor:'pointer',
+            }}>{p.label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ flex:1 }} />
+      <div style={{ padding:'0 24px 16px', fontSize:11, opacity:0.3, lineHeight:1.5, textAlign:'center' }}>each dot is a day. tap to mark done.</div>
+
+      {/* Primary action */}
+      <div style={{ padding:'0 24px 38px' }}>
+        <button disabled={!name.trim()} onClick={()=>name.trim()&&onCreate(name.trim(),duration)} style={{
+          width:'100%', height:52,
+          background:name.trim()?INK:'transparent',
+          color:      name.trim()?'#fff':INK,
+          border:`1px solid ${name.trim()?INK:'rgba(51,51,51,0.18)'}`,
+          borderRadius:0, fontFamily:sans, fontSize:13, letterSpacing:2,
+          cursor:name.trim()?'pointer':'default',
+          opacity:name.trim()?1:0.5,
+          transition:'all 160ms ease',
+        }}>{mode==='edit'?'SAVE':'CREATE'}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Screen transition — slow blur + fade dissolve ────────────────────────
+function ScreenSwitcher({ screenKey, children }) {
+  const [shown, setShown] = useState({ key:screenKey, node:children });
+  const [phase, setPhase] = useState('in');
+
+  useEffect(()=>{
+    if (screenKey===shown.key) { setShown({key:screenKey,node:children}); return; }
+    setPhase('out');
+    const t = setTimeout(()=>{
+      setShown({key:screenKey,node:children});
+      requestAnimationFrame(()=>setPhase('in'));
+    }, 990);
+    return ()=>clearTimeout(t);
+  },[screenKey, children]);
+
+  return (
+    <div style={{
+      width:'100%', height:'100%',
+      opacity:   phase==='in'?1:0,
+      filter:    phase==='in'?'blur(0px)':'blur(8px)',
+      transform: phase==='in'?'scale(1)':'scale(1.015)',
+      transition:'opacity 990ms cubic-bezier(0.4,0,0.2,1), filter 1150ms cubic-bezier(0.4,0,0.2,1), transform 1280ms cubic-bezier(0.22,0.7,0.2,1)',
+      willChange:'opacity,filter,transform',
+    }}>{shown.node}</div>
+  );
+}
+
+
+// ─── App ──────────────────────────────────────────────────────────────────
+function App() {
+  const accent = INK;
+  const [habits, setHabits] = useState(()=>load()||SEEDS);
+  const [view,   setView]   = useState({name:'home'});
+
+  useEffect(()=>{ save(habits); window.dispatchEvent(new CustomEvent('habitschanged')); },[habits]);
+
+  const openHabit = id => setView({name:'detail',id});
+  const goHome    = () => setView({name:'home'});
+
+  const toggle = (habitId, key) => setHabits(hs=>hs.map(h=>{
+    if (h.id!==habitId) return h;
+    const next=new Set(h.done); next.has(key)?next.delete(key):next.add(key);
+    return {...h,done:next};
+  }));
+
+  const create = (name,duration) => {
+    const h = makeHabit(name,duration,0,0);
+    setHabits(hs=>[h,...hs]); setView({name:'detail',id:h.id});
+  };
+
+  const update = (id,name,duration) => {
+    setHabits(hs=>hs.map(h=>h.id===id?{...h,name,total:duration}:h));
+    setView({name:'detail',id});
+  };
+
+  const extend = (id,by=30) => setHabits(hs=>hs.map(h=>h.id===id?{...h,total:h.total+by}:h));
+
+  const remove = id => { setHabits(hs=>hs.filter(h=>h.id!==id)); setView({name:'home'}); };
+
+  const current = (view.name==='detail'||view.name==='edit') ? habits.find(h=>h.id===view.id) : null;
+  const screenKey = view.name==='home'?'home':view.name==='new'?'new':`${view.name}:${view.id}`;
+
+  let screen;
+  if (view.name==='home') {
+    screen = <HomeScreen habits={habits} onOpen={openHabit} onAdd={()=>setView({name:'new'})} accent={accent} />;
+  } else if (view.name==='new') {
+    screen = <HabitForm onCreate={create} onCancel={goHome} />;
+  } else if (view.name==='edit' && current) {
+    screen = <HabitForm mode="edit" initialName={current.name} initialDuration={current.total}
+      onCreate={(n,d)=>update(current.id,n,d)}
+      onCancel={()=>setView({name:'detail',id:current.id})}
+      onDelete={()=>remove(current.id)} />;
+  } else if (view.name==='detail' && current) {
+    screen = <DetailScreen habit={current} accent={accent} onBack={goHome}
+      onToggle={k=>toggle(current.id,k)}
+      onDelete={()=>remove(current.id)}
+      onEdit={()=>setView({name:'edit',id:current.id})}
+      onExtend={()=>extend(current.id,30)} />;
+  }
+
+  return (
+    <div style={{ height:'100vh', overflow:'hidden', background:BG, fontFamily:sans, position:'relative' }}>
+      <ScreenSwitcher screenKey={screenKey}>{screen}</ScreenSwitcher>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
 </body>
 </html>
