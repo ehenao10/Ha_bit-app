@@ -19,15 +19,20 @@
 
 <style>
   *, *::before, *::after { box-sizing: border-box; }
-  html { margin: 0; padding: 0; background: #F1F2F6; height: 100%; overflow: hidden; }
+  html { margin: 0; padding: 0; background: #F1F2F6; }
   body {
     margin: 0; padding: 0;
     background: #F1F2F6;
-    /* extend background into status-bar area on iOS */
-    padding-top: env(safe-area-inset-top, 0px);
-    height: 100%; overflow: hidden;
+    overflow: hidden;
     font-family: 'Inter', -apple-system, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+  }
+  /* Fixed root covers the entire physical screen — fills behind notch/status bar */
+  #root {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: #F1F2F6;
   }
   /* Safe-area bottom helper used by all bottom buttons */
   .ha-bottom { padding-bottom: max(38px, calc(22px + env(safe-area-inset-bottom, 0px))); }
@@ -180,7 +185,7 @@ function HomeScreen({ habits, onOpen, onAdd, accent }) {
     <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans, position:'relative' }}>
 
       {/* Header */}
-      <div style={{ padding:'64px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+      <div style={{ padding:'20px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
         <div style={{ fontSize:13, letterSpacing:1.5, opacity:0.55 }}>HA_BITS</div>
         <div style={{ fontSize:13, opacity:0.55 }}>{habits.length}</div>
       </div>
@@ -241,7 +246,7 @@ function DetailScreen({ habit, onBack, onToggle, accent, onDelete, onEdit, onExt
     <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans, position:'relative' }}>
 
       {/* Top bar */}
-      <div style={{ padding:'64px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+      <div style={{ padding:'20px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
         <button onClick={onBack}   style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer' }}>←</button>
         <button onClick={onEdit}   style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer', textTransform:'uppercase' }}>{habit.name}</button>
         <button onClick={onDelete} style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer' }}>×</button>
@@ -302,7 +307,7 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
     <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:BG, color:INK, fontFamily:sans }}>
 
       {/* Header */}
-      <div style={{ padding:'64px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+      <div style={{ padding:'20px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
         <button onClick={onCancel} style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer' }}>←</button>
         {mode==='edit'
           ? <button onClick={onDelete} style={{ background:'none', border:'none', color:INK, fontFamily:sans, fontSize:13, letterSpacing:1.5, opacity:0.55, padding:0, cursor:'pointer', textTransform:'uppercase' }}>Delete</button>
@@ -436,7 +441,7 @@ function App() {
   }
 
   return (
-    <div style={{ height:'100vh', overflow:'hidden', background:BG, fontFamily:sans, position:'relative' }}>
+    <div style={{ height:'100%', overflow:'hidden', background:BG, fontFamily:sans, position:'relative', paddingTop:'env(safe-area-inset-top, 0px)', boxSizing:'border-box' }}>
       <ScreenSwitcher screenKey={screenKey}>{screen}</ScreenSwitcher>
     </div>
   );
