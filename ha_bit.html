@@ -201,14 +201,14 @@ function HomeScreen({ habits, onOpen, onAdd, accent }) {
               padding:'20px 24px', display:'flex', flexDirection:'column', gap:12,
               textAlign:'left', cursor:'pointer', fontFamily:sans, color:INK,
             }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
-                <div style={{ fontSize:16, flex:1, minWidth:0 }}>{h.name}</div>
-                {/* Right column — explicit right-align so it stays put cross-browser */}
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2, textAlign:'right', flexShrink:0 }}>
-                  <div style={{ fontSize:12, opacity:0.45 }}>{doneTotal}/{h.total}</div>
-                  <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase' }}>Started {fmtDate(h.start)}</div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, width:'100%' }}>
+                <div style={{ fontSize:16, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{h.name}</div>
+                {/* Right column — pinned hard-right, never wraps, stays put cross-browser */}
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2, textAlign:'right', flexShrink:0, marginLeft:'auto', whiteSpace:'nowrap' }}>
+                  <div style={{ fontSize:12, opacity:0.45, textAlign:'right', width:'100%' }}>{doneTotal}/{h.total}</div>
+                  <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase', textAlign:'right', width:'100%' }}>Started {fmtDate(h.start)}</div>
                   {h.sharedWith && (
-                    <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase' }}>with {h.sharedWith}</div>
+                    <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase', textAlign:'right', width:'100%' }}>with {h.sharedWith}</div>
                   )}
                 </div>
               </div>
