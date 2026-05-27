@@ -186,7 +186,7 @@ function HomeScreen({ habits, onOpen, onAdd, accent }) {
       </div>
 
       {/* Habit list */}
-      <div style={{ flex:1, overflowY:'auto', padding:'8px 0 100px' }}>
+      <div style={{ flex:1, overflowY:'hidden', padding:'8px 0 80px' }}>
         {habits.map(h=>{
           const doneTotal = h.done.size;
           return (
