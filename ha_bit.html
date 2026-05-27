@@ -263,7 +263,7 @@ function DetailScreen({ habit, onBack, onToggle, accent, onDelete, onEdit, onExt
       </div>
 
       {/* Action button */}
-      <div className="ha-bottom" style={{ padding:'0 24px 0' }}>
+      <div className="ha-bottom" style={{ paddingLeft:24, paddingRight:24 }}>
         <button
           onClick={()=>completed?onExtend():onToggle(dayKey(TODAY))}
           style={{
@@ -339,7 +339,7 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
       <div style={{ padding:'0 24px 16px', fontSize:11, opacity:0.3, lineHeight:1.5, textAlign:'center' }}>each dot is a day. tap to mark done.</div>
 
       {/* Primary action */}
-      <div className="ha-bottom" style={{ padding:'0 24px 0' }}>
+      <div className="ha-bottom" style={{ paddingLeft:24, paddingRight:24 }}>
         <button disabled={!name.trim()} onClick={()=>name.trim()&&onCreate(name.trim(),duration)} style={{
           width:'100%', height:52,
           background:name.trim()?INK:'transparent',
