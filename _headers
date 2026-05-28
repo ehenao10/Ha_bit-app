@@ -1,0 +1,8 @@
+# Always serve the freshest HTML so home-screen / browser users get
+# updates without re-adding the shortcut. localStorage is unaffected.
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/ha_bit.html
+  Cache-Control: no-cache, no-store, must-revalidate
