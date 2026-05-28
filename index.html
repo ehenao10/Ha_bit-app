@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>ha_bit</title>
+<title>ha_bits</title>
 
 <!-- PWA — "Add to Home Screen" on iOS opens fullscreen as a standalone app -->
 <meta name="apple-mobile-web-app-capable"            content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style"   content="default" />
-<meta name="apple-mobile-web-app-title"              content="ha_bit" />
+<meta name="apple-mobile-web-app-title"              content="ha_bits" />
 <meta name="theme-color"                             content="#F1F2F6" />
 <link id="ha-apple-icon" rel="apple-touch-icon" />
 <link id="ha-favicon"    rel="icon" type="image/png" />
@@ -389,7 +389,7 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
     const url = `https://ha-bit.app/invite/${Math.random().toString(36).slice(2,9)}`;
     const text = `Join me in building "${name.trim()||'a new habit'}" — let's keep each other accountable.`;
     try {
-      if (navigator.share) await navigator.share({ title:'ha_bit', text, url });
+      if (navigator.share) await navigator.share({ title:'ha_bits', text, url });
       else { await navigator.clipboard?.writeText(`${text} ${url}`); alert('Invite link copied to clipboard'); }
     } catch(e){}
   };
