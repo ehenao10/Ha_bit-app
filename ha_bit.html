@@ -169,12 +169,12 @@ function load() {
 }
 
 // ─── Dot grid (detail view) ───────────────────────────────────────────────
-function DotGrid({ habit, cols=16, dotSize=14, gap=8, accent='#333', dim='rgba(51,51,51,0.18)', onTap }) {
+function DotGrid({ habit, cols=16, dotSize=14, gap=8, accent='#333', dim='rgba(51,51,51,0.18)', onTap, todayKey }) {
   const startDate = useMemo(()=>{ const [y,m,d]=habit.start.split('-').map(Number); return new Date(y,m-1,d); },[habit.start]);
   const dots = [];
   for (let i=0; i<habit.total; i++) {
     const d=addDays(startDate,i), k=dayKey(d);
-    dots.push({ i, k, isFuture:d>TODAY, isToday:k===dayKey(TODAY), isDone:habit.done.has(k) });
+    dots.push({ i, k, isToday:k===todayKey, isDone:habit.done.has(k) });
   }
   return (
     <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols},${dotSize}px)`, gap:`${gap}px`, justifyContent:'center' }}>
@@ -183,8 +183,7 @@ function DotGrid({ habit, cols=16, dotSize=14, gap=8, accent='#333', dim='rgba(5
           width:dotSize, height:dotSize, borderRadius:'50%',
           background: dt.isDone ? accent : dim,
           border: dt.isToday&&!dt.isDone ? `1px solid ${accent}` : 'none',
-          padding:0, cursor:dt.isFuture?'default':'pointer',
-          opacity:dt.isFuture?0.45:1,
+          padding:0, cursor:'pointer',
           transition:'background 180ms ease',
         }}/>
       ))}
@@ -212,37 +211,65 @@ function SwipeRow({ onDelete, children }) {
   const [dragging, setDrag]   = useState(false);
   const [confirm, setConfirm] = useState(false);
   const ref = useRef(null);
-  const st  = useRef({ x:0, tx0:0, moved:false, w:320 });
+  const st  = useRef({ x:0, tx0:0, moved:false, active:false, w:320 });
   const txRef = useRef(0);
   const set = v => { txRef.current = v; setTx(v); };
 
-  const down = e => {
-    st.current = { x:e.clientX, tx0:txRef.current, moved:false, w:ref.current?.offsetWidth||320 };
-    setDrag(true);
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+  // ── Pure touch / mouse handlers — no pointer capture, so clicks on the
+  // inner habit button still fire normally when the user just taps. ──
+  // Swipe is only allowed to BEGIN from the right edge of the row, so the
+  // rest of the row stays cleanly tappable. (If the row is already open,
+  // any touch can drag/close it.)
+  const SWIPE_ZONE = 80;             // px from the right edge that can initiate a drag
+  const start = (clientX) => {
+    const rect = ref.current?.getBoundingClientRect();
+    const fromRight = rect ? rect.right - clientX : 0;
+    const allow = txRef.current !== 0 || fromRight <= SWIPE_ZONE;
+    st.current = {
+      x: clientX, tx0: txRef.current, moved: false, active: allow,
+      w: rect?.width || ref.current?.offsetWidth || 320,
+    };
   };
-  const move = e => {
-    if (!dragging) return;
-    const d = e.clientX - st.current.x;
-    if (Math.abs(d) > 6) { st.current.moved = true; if (confirm) setConfirm(false); }
-    let v = st.current.tx0 + d;
-    v = Math.min(0, Math.max(-ACTION*1.7, v));   // left-only, slight overscroll
-    set(v);
+  const drag = (clientX) => {
+    if (!st.current.active) return;
+    const d = clientX - st.current.x;
+    if (!st.current.moved && Math.abs(d) > 8) {
+      st.current.moved = true;
+      setDrag(true);
+      if (confirm) setConfirm(false);
+    }
+    if (st.current.moved) {
+      let v = st.current.tx0 + d;
+      v = Math.min(0, Math.max(-ACTION*1.7, v));
+      set(v);
+    }
   };
-  const up = () => {
-    if (!dragging) return;
+  const end = () => {
+    if (!st.current.active) return;
+    st.current.active = false;
+    if (!st.current.moved) return;        // pure tap — leave click path alone
     setDrag(false);
     const w = st.current.w || 320;
-    if (txRef.current <= -w*0.5) { onDelete(); return; }     // full swipe = delete
-    const snapTo = txRef.current <= -ACTION/2 ? -ACTION : 0; // else snap open / closed
+    if (txRef.current <= -w*0.5) { onDelete(); return; }
+    const snapTo = txRef.current <= -ACTION/2 ? -ACTION : 0;
     set(snapTo);
     if (snapTo === 0) setConfirm(false);
   };
-  // Swallow the tap that follows a drag, and close (instead of open) when open
+
+  const onTouchStart = e => start(e.touches[0].clientX);
+  const onTouchMove  = e => drag(e.touches[0].clientX);
+  const onTouchEnd   = ()=> end();
+  const onMouseDown  = e => start(e.clientX);
+  const onMouseMove  = e => { if (st.current.active) drag(e.clientX); };
+  const onMouseUp    = ()=> end();
+
+  // Suppress click ONLY after an actual swipe, or when the row is open
+  // (so an open row closes on tap instead of opening the habit).
   const clickCapture = e => {
     if (st.current.moved || txRef.current !== 0) {
       e.preventDefault(); e.stopPropagation();
       if (txRef.current !== 0) { set(0); setConfirm(false); }
+      st.current.moved = false;
     }
   };
 
@@ -253,7 +280,8 @@ function SwipeRow({ onDelete, children }) {
       {/* Flex track: foreground (100%) + delete panel (ACTION) sitting just off
           the right edge — clipped until the row slides left to reveal it. */}
       <div
-        onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onTouchCancel={onTouchEnd}
+        onMouseDown={onMouseDown}   onMouseMove={onMouseMove}  onMouseUp={onMouseUp}  onMouseLeave={onMouseUp}
         style={{ display:'flex', width:'100%', transform:`translateX(${tx}px)`, touchAction:'pan-y', ...snap }}
       >
         <div onClickCapture={clickCapture} style={{ width:'100%', flexShrink:0 }}>{children}</div>
@@ -332,7 +360,17 @@ function DetailScreen({ habit, onBack, onToggle, accent, onDelete, onEdit, onExt
   const doneCount = habit.done.size;
   const pct       = Math.round((doneCount/habit.total)*100);
   const completed = doneCount >= habit.total;
-  const todayDone = habit.done.has(dayKey(TODAY));
+
+  // "Today" = the dot right after the last marked one (sequential progression,
+  // independent of the calendar date). If nothing is marked yet, today = dot 0.
+  const startDate = useMemo(()=>{ const [y,m,d]=habit.start.split('-').map(Number); return new Date(y,m-1,d); },[habit.start]);
+  const dotKeyAt  = (i)=> dayKey(addDays(startDate, i));
+  let lastMarked = -1;
+  for (let i = habit.total-1; i >= 0; i--) {
+    if (habit.done.has(dotKeyAt(i))) { lastMarked = i; break; }
+  }
+  const todayIndex = Math.min(habit.total-1, lastMarked + 1);
+  const todayKey   = todayIndex >= 0 ? dotKeyAt(todayIndex) : null;
 
   let cols, dotSize, gap;
   if      (habit.total > 300) { cols=20; dotSize=10; gap=6; }
@@ -362,22 +400,22 @@ function DetailScreen({ habit, onBack, onToggle, accent, onDelete, onEdit, onExt
       {/* Dot grid */}
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px 8px' }}>
         <DotGrid habit={habit} cols={cols} dotSize={dotSize} gap={gap} accent={accent}
-          onTap={dt=>!dt.isFuture&&onToggle(dt.k)} />
+          todayKey={todayKey}
+          onTap={dt=>onToggle(dt.k)} />
       </div>
 
       {/* Action button */}
       <div className="ha-bottom" style={{ paddingLeft:24, paddingRight:24 }}>
         <button
-          onClick={()=>completed?onExtend():onToggle(dayKey(TODAY))}
+          onClick={()=> completed ? onExtend() : (todayKey && onToggle(todayKey))}
           style={{
             width:'100%', height:52,
-            background:(todayDone&&!completed)?INK:'transparent',
-            color:      (todayDone&&!completed)?'#fff':INK,
-            border:`1px solid ${(todayDone&&!completed)?INK:'rgba(51,51,51,0.18)'}`,
+            background:'transparent', color:INK,
+            border:'1px solid rgba(51,51,51,0.18)',
             borderRadius:0, fontFamily:sans, fontSize:13, letterSpacing:2,
             cursor:'pointer', transition:'all 160ms ease',
           }}
-        >{completed?'+ EXTEND':todayDone?'✓ DONE TODAY':'MARK TODAY'}</button>
+        >{completed?'+ EXTEND':'MARK TODAY'}</button>
       </div>
     </div>
   );
