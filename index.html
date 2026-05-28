@@ -205,8 +205,70 @@ function MiniGrid({ habit, cols=30, dotSize=4, gap=2, accent='#333', dim='rgba(5
   );
 }
 
+// ─── Swipe-to-delete row (right→left reveals a gray delete panel) ─────────
+function SwipeRow({ onDelete, children }) {
+  const ACTION = 88;                 // width of the revealed delete panel
+  const [tx, setTx]           = useState(0);
+  const [dragging, setDrag]   = useState(false);
+  const ref = useRef(null);
+  const st  = useRef({ x:0, tx0:0, moved:false, w:320 });
+  const txRef = useRef(0);
+  const set = v => { txRef.current = v; setTx(v); };
+
+  const down = e => {
+    st.current = { x:e.clientX, tx0:txRef.current, moved:false, w:ref.current?.offsetWidth||320 };
+    setDrag(true);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const move = e => {
+    if (!dragging) return;
+    const d = e.clientX - st.current.x;
+    if (Math.abs(d) > 6) st.current.moved = true;
+    let v = st.current.tx0 + d;
+    v = Math.min(0, Math.max(-ACTION*1.7, v));   // left-only, slight overscroll
+    set(v);
+  };
+  const up = () => {
+    if (!dragging) return;
+    setDrag(false);
+    const w = st.current.w || 320;
+    if (txRef.current <= -w*0.5) { onDelete(); return; }     // full swipe = delete
+    set(txRef.current <= -ACTION/2 ? -ACTION : 0);           // else snap open / closed
+  };
+  // Swallow the tap that follows a drag, and close (instead of open) when open
+  const clickCapture = e => {
+    if (st.current.moved || txRef.current !== 0) {
+      e.preventDefault(); e.stopPropagation();
+      if (txRef.current !== 0) set(0);
+    }
+  };
+
+  const snap = { transition: dragging ? 'none' : 'transform 220ms cubic-bezier(0.4,0,0.2,1)' };
+
+  return (
+    <div ref={ref} style={{ position:'relative', overflow:'hidden' }}>
+      {/* Flex track: foreground (100%) + delete panel (ACTION) sitting just off
+          the right edge — clipped until the row slides left to reveal it. */}
+      <div
+        onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+        style={{ display:'flex', width:'100%', transform:`translateX(${tx}px)`, touchAction:'pan-y', ...snap }}
+      >
+        <div onClickCapture={clickCapture} style={{ width:'100%', flexShrink:0 }}>{children}</div>
+        <div onClick={onDelete} style={{
+          width:ACTION, flexShrink:0, background:'#8c8c92',
+          display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer',
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Screen: Home ─────────────────────────────────────────────────────────
-function HomeScreen({ habits, onOpen, onAdd, accent }) {
+function HomeScreen({ habits, onOpen, onAdd, onDelete, accent }) {
   return (
     <div className="noise-bg" style={{ height:'100%', display:'flex', flexDirection:'column', background:'transparent', color:INK, fontFamily:sans, position:'relative' }}>
 
@@ -221,25 +283,27 @@ function HomeScreen({ habits, onOpen, onAdd, accent }) {
         {habits.map(h=>{
           const doneTotal = h.done.size;
           return (
-            <button key={h.id} onClick={()=>onOpen(h.id)} style={{
-              width:'100%', background:'transparent', border:'none',
-              borderTop:'1px solid rgba(51,51,51,0.06)',
-              padding:'20px 24px', display:'flex', flexDirection:'column', gap:12,
-              textAlign:'left', cursor:'pointer', fontFamily:sans, color:INK,
-            }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, width:'100%' }}>
-                <div style={{ fontSize:16, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{h.name}</div>
-                {/* Right column — pinned hard-right, never wraps, stays put cross-browser */}
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2, textAlign:'right', flexShrink:0, marginLeft:'auto', whiteSpace:'nowrap' }}>
-                  <div style={{ fontSize:12, opacity:0.45, textAlign:'right', width:'100%' }}>{doneTotal}/{h.total}</div>
-                  <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase', textAlign:'right', width:'100%' }}>Started {fmtDate(h.start)}</div>
-                  {h.sharedWith && (
-                    <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase', textAlign:'right', width:'100%' }}>with {h.sharedWith}</div>
-                  )}
+            <SwipeRow key={h.id} onDelete={()=>onDelete(h.id)}>
+              <button onClick={()=>onOpen(h.id)} style={{
+                width:'100%', background:'transparent', border:'none',
+                borderTop:'1px solid rgba(51,51,51,0.06)',
+                padding:'20px 24px', display:'flex', flexDirection:'column', gap:12,
+                textAlign:'left', cursor:'pointer', fontFamily:sans, color:INK,
+              }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, width:'100%' }}>
+                  <div style={{ fontSize:16, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{h.name}</div>
+                  {/* Right column — pinned hard-right, never wraps, stays put cross-browser */}
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2, textAlign:'right', flexShrink:0, marginLeft:'auto', whiteSpace:'nowrap' }}>
+                    <div style={{ fontSize:12, opacity:0.45, textAlign:'right', width:'100%' }}>{doneTotal}/{h.total}</div>
+                    <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase', textAlign:'right', width:'100%' }}>Started {fmtDate(h.start)}</div>
+                    {h.sharedWith && (
+                      <div style={{ fontSize:10, letterSpacing:1.2, opacity:0.4, textTransform:'uppercase', textAlign:'right', width:'100%' }}>with {h.sharedWith}</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <MiniGrid habit={h} accent={accent} />
-            </button>
+                <MiniGrid habit={h} accent={accent} />
+              </button>
+            </SwipeRow>
           );
         })}
       </div>
@@ -478,7 +542,7 @@ function App() {
 
   let screen;
   if (view.name==='home') {
-    screen = <HomeScreen habits={habits} onOpen={openHabit} onAdd={()=>setView({name:'new'})} accent={accent} />;
+    screen = <HomeScreen habits={habits} onOpen={openHabit} onAdd={()=>setView({name:'new'})} onDelete={remove} accent={accent} />;
   } else if (view.name==='new') {
     screen = <HabitForm onCreate={create} onCancel={goHome} />;
   } else if (view.name==='edit' && current) {
