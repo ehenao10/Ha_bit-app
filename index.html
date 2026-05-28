@@ -210,6 +210,7 @@ function SwipeRow({ onDelete, children }) {
   const ACTION = 88;                 // width of the revealed delete panel
   const [tx, setTx]           = useState(0);
   const [dragging, setDrag]   = useState(false);
+  const [confirm, setConfirm] = useState(false);
   const ref = useRef(null);
   const st  = useRef({ x:0, tx0:0, moved:false, w:320 });
   const txRef = useRef(0);
@@ -223,7 +224,7 @@ function SwipeRow({ onDelete, children }) {
   const move = e => {
     if (!dragging) return;
     const d = e.clientX - st.current.x;
-    if (Math.abs(d) > 6) st.current.moved = true;
+    if (Math.abs(d) > 6) { st.current.moved = true; if (confirm) setConfirm(false); }
     let v = st.current.tx0 + d;
     v = Math.min(0, Math.max(-ACTION*1.7, v));   // left-only, slight overscroll
     set(v);
@@ -233,13 +234,15 @@ function SwipeRow({ onDelete, children }) {
     setDrag(false);
     const w = st.current.w || 320;
     if (txRef.current <= -w*0.5) { onDelete(); return; }     // full swipe = delete
-    set(txRef.current <= -ACTION/2 ? -ACTION : 0);           // else snap open / closed
+    const snapTo = txRef.current <= -ACTION/2 ? -ACTION : 0; // else snap open / closed
+    set(snapTo);
+    if (snapTo === 0) setConfirm(false);
   };
   // Swallow the tap that follows a drag, and close (instead of open) when open
   const clickCapture = e => {
     if (st.current.moved || txRef.current !== 0) {
       e.preventDefault(); e.stopPropagation();
-      if (txRef.current !== 0) set(0);
+      if (txRef.current !== 0) { set(0); setConfirm(false); }
     }
   };
 
@@ -254,13 +257,18 @@ function SwipeRow({ onDelete, children }) {
         style={{ display:'flex', width:'100%', transform:`translateX(${tx}px)`, touchAction:'pan-y', ...snap }}
       >
         <div onClickCapture={clickCapture} style={{ width:'100%', flexShrink:0 }}>{children}</div>
-        <div onClick={onDelete} style={{
-          width:ACTION, flexShrink:0, background:'#8c8c92',
+        <div onClick={()=> confirm ? onDelete() : setConfirm(true)} style={{
+          width:ACTION, flexShrink:0,
+          background: confirm ? '#000' : INK,
           display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer',
+          transition:'background 160ms ease',
         }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/>
-          </svg>
+          {confirm
+            ? <span style={{ color:'#fff', fontFamily:sans, fontSize:10, letterSpacing:1.5 }}>DELETE</span>
+            : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/>
+              </svg>
+          }
         </div>
       </div>
     </div>
