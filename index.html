@@ -345,9 +345,32 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
 
       {/* Duration */}
       <div style={{ padding:'40px 24px 0' }}>
-        <div style={{ fontSize:11, letterSpacing:2, opacity:0.45, marginBottom:16 }}>FOR HOW MANY DAYS</div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:16 }}>
+          <div style={{ fontSize:11, letterSpacing:2, opacity:0.45 }}>FOR HOW MANY DAYS</div>
+          <button onClick={()=>{ setCustomMode(true); setDuration(''); }} style={{
+            background:'none', border:'none', color:INK, fontFamily:sans,
+            fontSize:11, letterSpacing:2, textTransform:'uppercase',
+            opacity:customMode?0.9:0.45, padding:0, cursor:'pointer',
+          }}>OTHER</button>
+        </div>
         <div style={{ display:'flex', gap:8 }}>
-          {presets.map(p=>{
+          {presets.map((p, idx)=>{
+            // Last slot (365) becomes the custom input when OTHER is active
+            if (idx===presets.length-1 && customMode) {
+              return (
+                <input key="custom" autoFocus type="number" inputMode="numeric" min="1" value={duration||''}
+                  onChange={e=>{ const v=parseInt(e.target.value||'0',10); setDuration(v>0?v:''); }}
+                  placeholder="#"
+                  style={{
+                    flex:1, minWidth:0, width:0, height:52,
+                    background:'transparent', color:INK,
+                    border:'1px solid rgba(51,51,51,0.16)', borderRadius:0,
+                    fontFamily:sans, fontSize:16, textAlign:'center', outline:'none',
+                    WebkitAppearance:'none', margin:0,
+                  }}
+                />
+              );
+            }
             const sel = !customMode && duration===p.v;
             return (
               <button key={p.v} onClick={()=>{ setCustomMode(false); setDuration(p.v); }} style={{
@@ -359,27 +382,6 @@ function HabitForm({ onCreate, onCancel, onDelete, initialName='', initialDurati
               }}>{p.label}</button>
             );
           })}
-          {/* OTHER — only this box turns into a dashed, empty-fill custom input */}
-          {customMode ? (
-            <input autoFocus type="number" inputMode="numeric" min="1" value={duration||''}
-              onChange={e=>{ const v=parseInt(e.target.value||'0',10); setDuration(v>0?v:''); }}
-              placeholder="#"
-              style={{
-                flex:1, minWidth:0, width:0, height:52,
-                background:'transparent', color:INK,
-                border:'1px dashed rgba(51,51,51,0.45)', borderRadius:0,
-                fontFamily:sans, fontSize:16, textAlign:'center', outline:'none',
-                WebkitAppearance:'none', margin:0,
-              }}
-            />
-          ) : (
-            <button onClick={()=>{ setCustomMode(true); setDuration(''); }} style={{
-              flex:1, minWidth:0, height:52,
-              background:'transparent', color:INK,
-              border:'1px dashed rgba(51,51,51,0.45)', borderRadius:0,
-              fontFamily:sans, fontSize:12, letterSpacing:1, cursor:'pointer',
-            }}>OTHER</button>
-          )}
         </div>
       </div>
 
