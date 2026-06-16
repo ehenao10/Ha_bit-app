@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Rimas Sports × StoyCo — Fandom Development Infrastructure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<script src="deck-stage.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ─── Password gate ─────────────────────────────────────────────── */
+  #gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #14121D;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 28px;
+  }
+  #gate .wordmark {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-weight: 700; font-size: 14px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: #9E80E1;
+  }
+  #gate .wordmark .sep { color: rgba(255,255,255,0.3); margin: 0 10px; }
+  #gate form {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+  #gate input {
+    background: rgba(158,128,225,0.08);
+    border: 1px solid rgba(158,128,225,0.30);
+    border-radius: 6px;
+    color: #fff;
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 15px;
+    letter-spacing: 0.12em;
+    padding: 14px 24px;
+    width: 260px;
+    text-align: center;
+    outline: none;
+    transition: border-color .15s;
+  }
+  #gate input::placeholder { color: rgba(255,255,255,0.25); }
+  #gate input:focus { border-color: #9E80E1; }
+  #gate button {
+    background: #9E80E1; border: none; border-radius: 6px;
+    color: #14121D; font-family: "Geist Mono", ui-monospace, monospace;
+    font-weight: 700; font-size: 13px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 13px 36px; cursor: pointer;
+    transition: opacity .15s;
+  }
+  #gate button:hover { opacity: 0.85; }
+  #gate .err {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #FF6B6B; height: 16px;
+  }
+
+  /* ─── Deck hidden until unlocked ───────────────────────────────── */
+  #deck { visibility: hidden; }
+
+  /* ─── Slide styles (original) ───────────────────────────────────── */
+  :root {
+    --bg: #14121D;
+    --bg-2: rgba(34, 22, 60, 0.55);
+    --bg-3: rgba(48, 32, 90, 0.55);
+    --fg: #FFFFFF;
+    --fg-dim: rgba(255, 255, 255, 0.55);
+    --fg-mid: rgba(255, 255, 255, 0.78);
+    --line: rgba(158, 128, 225, 0.18);
+    --line-2: rgba(158, 128, 225, 0.30);
+    --accent: #9E80E1;
+    --accent-vivid: #9E80E1;
+    --accent-2: #FFC857;
+    --accent-cool: #6FA8FF;
+
+    --type-mega: 200px;
+    --type-display: 132px;
+    --type-title: 76px;
+    --type-h2: 51px;
+    --type-subtitle: 44px;
+    --type-body: 33px;
+    --type-small: 27px;
+    --type-label: 24px;
+
+    --pad-x: 132px;
+    --pad-top: 110px;
+    --pad-bottom: 100px;
+    --gap-title: 48px;
+    --gap-item: 28px;
+
+    --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --font-body: "Akkurat", "Akkurat LL", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  html, body { background: var(--bg); margin: 0; }
+  body { font-family: var(--font-body); color: var(--fg); }
+
+  deck-stage section {
+    background-color: var(--bg);
+    background-image: url("assets/bg-stoyco.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: var(--fg);
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    padding: var(--pad-top) var(--pad-x) var(--pad-bottom);
+    position: relative;
+    overflow: hidden;
+  }
+
+  deck-stage section.bg-shift { background-position: right top; }
+  deck-stage section.bg-flip { background-position: left bottom; }
+
+  .mono { font-family: var(--font-mono); font-weight: 400; letter-spacing: 0.02em; }
+  .upper { text-transform: uppercase; letter-spacing: 0.06em; }
+  .dim { color: var(--fg-dim); }
+  .mid { color: var(--fg-mid); }
+  .accent { color: var(--accent); }
+  .accent-2 { color: var(--accent-2); }
+
+  .rail {
+    position: absolute;
+    left: 30px; top: 25px;
+    width: 25px; height: calc(100% - 50px);
+    z-index: 5;
+    pointer-events: none;
+  }
+  .rail .label {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(180deg);
+    writing-mode: vertical-rl;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 100%;
+    letter-spacing: 0.85em;
+    color: var(--accent);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .rail .num {
+    position: absolute;
+    left: 50%; top: 0;
+    transform: translateX(-50%) rotate(180deg);
+    writing-mode: vertical-rl;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 100%;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+  }
+  .rail .mark {
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 25px; height: 44px;
+    background: url("data:image/svg+xml,%3Csvg%20width%3D%2225%22%20height%3D%2244%22%20viewBox%3D%220%200%2025%2044%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M20.1657%2011.6893C18.2301%2011.6893%2016.1027%2013.2169%2015.8549%2014.71L15.5889%2016.3082C15.4973%2016.8599%2015.0359%2017.2486%2014.5151%2017.2486C14.4532%2017.2486%2014.3913%2017.2432%2014.3285%2017.2323C14.1043%2017.1915%2013.908%2017.0828%2013.7563%2016.9297C13.5059%2016.6778%2013.376%2016.3064%2013.4396%2015.9222L13.5399%2015.3188L15.9954%200.556289C16.0416%200.278145%2015.8471%200.00181202%2015.5758%200H4.71608C4.34537%200%204.04531%200.311667%204.04531%200.696721L0.105278%2027.4086C-0.77484%2033.8059%204.1526%2034.3541%204.1526%2034.3541C6.26436%2034.9022%209.25536%2033.2578%209.68452%2028.8709C9.74557%2028.2485%2010.3684%2027.8534%2010.9606%2027.9712C10.999%2027.9785%2011.0339%2027.9939%2011.0705%2028.0056C11.5983%2028.1714%2011.9332%2028.7223%2011.8268%2029.2976L11.559%2030.7527L9.39492%2042.5C9.29287%2043.0517%209.70022%2043.5636%2010.2419%2043.5636H20.0008C20.3715%2043.5636%2020.6716%2043.252%2020.6716%2042.8669C20.6716%2042.8669%2024.5645%2018.9274%2024.5645%2016.4432C24.5645%2012.6053%2021.0449%2011.6911%2020.1657%2011.6911V11.6893Z%22%20fill%3D%22%239E80E1%22%2F%3E%3C%2Fsvg%3E") no-repeat center / contain;
+  }
+
+  .foot {
+    position: absolute;
+    left: 132px; right: 132px; bottom: 36px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    z-index: 4;
+    pointer-events: none;
+  }
+  .foot .left { display: flex; flex-direction: column; gap: 6px; }
+  .foot .right {
+    font-family: var(--font-body);
+    font-size: 27px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--accent);
+    text-align: right;
+  }
+  .foot .right small { display: block; color: var(--fg); font-size: 24px; letter-spacing: 0.16em; text-transform: uppercase; margin-top: 10px; font-family: var(--font-mono); }
+  .rimas-mark {
+    font-family: var(--font-display);
+    font-size: 38px;
+    letter-spacing: -0.04em;
+    color: var(--fg);
+    font-weight: 400;
+  }
+  .rimas-mark .x { color: var(--accent); margin: 0 8px; }
+  .chrome-top, .chrome-bottom { display: none; }
+
+  .sec-num {
+    font-family: var(--font-display);
+    font-size: var(--type-mega);
+    line-height: 1;
+    color: var(--accent);
+    font-weight: 400;
+    letter-spacing: -0.05em;
+    padding-bottom: 16px;
+  }
+  .sec-num .slash { color: var(--fg); opacity: 0.5; }
+
+  h1.slide-title {
+    font-family: var(--font-display);
+    font-size: var(--type-title);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.05em;
+    margin: 0;
+    text-wrap: balance;
+    color: var(--accent);
+  }
+  h2.slide-sub {
+    font-family: var(--font-display);
+    font-size: var(--type-h2);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.05em;
+    margin: 0;
+    color: var(--fg);
+  }
+  p.body, p.lead {
+    font-family: var(--font-body);
+    font-size: var(--type-body);
+    line-height: 1.2;
+    color: var(--fg);
+    margin: 0;
+    text-wrap: pretty;
+    max-width: 22ch;
+  }
+  p.body.wide, p.lead.wide { max-width: 28ch; }
+
+  ul.clean {
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: var(--gap-item);
+  }
+  ul.clean li {
+    font-family: var(--font-body);
+    font-size: var(--type-body);
+    line-height: 1.2;
+    color: var(--fg);
+    padding-left: 36px;
+    position: relative;
+  }
+  ul.clean li::before {
+    content: ""; position: absolute; left: 0; top: 0.55em;
+    width: 14px; height: 2px; background: var(--accent);
+  }
+  ul.clean.dim-list li { color: var(--fg-mid); }
+
+  .rule { height: 1px; background: var(--line-2); width: 100%; }
+
+  .label-row {
+    display: flex; align-items: baseline; gap: 18px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 24px; letter-spacing: 0.24em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  .label-row .bar { display: inline-block; width: 32px; height: 1px; background: var(--accent); }
+
+  .cover {
+    background-image:
+      radial-gradient(120% 80% at 80% 100%, rgba(199,182,255,0.18), transparent 60%),
+      radial-gradient(80% 60% at 0% 0%, rgba(138,107,255,0.20), transparent 60%),
+      url("assets/bg-stoyco.png") !important;
+  }
+  .cover-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 80px;
+    flex: 1; align-items: end;
+    padding-top: 60px;
+  }
+  .cover-title {
+    font-family: var(--font-display);
+    font-size: var(--type-display);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.05em;
+    color: var(--accent);
+    margin: 0;
+  }
+  .cover-title .line { display: block; }
+  .cover-title .line.accent { color: var(--fg); font-weight: 400; font-style: normal; }
+  .cover-meta {
+    border-left: 1px solid var(--line-2);
+    padding-left: 40px;
+    display: flex; flex-direction: column; gap: 28px;
+    font-family: var(--font-body);
+    font-size: var(--type-small);
+    color: var(--fg-mid);
+    line-height: 1.4;
+  }
+  .cover-meta .k { color: var(--accent); font-size: 24px; letter-spacing: 0.16em; text-transform: uppercase; font-family: var(--font-mono); font-weight: 700; }
+  .cover-meta .v { color: var(--fg); font-size: 28px; letter-spacing: -0.02em; line-height: 1.2; }
+  .cover-x {
+    font-family: var(--font-display);
+    font-size: 64px;
+    color: var(--accent);
+    font-weight: 300;
+    display: inline-block;
+    margin: 0 22px;
+  }
+  .cover-wordmark {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 24px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex; align-items: center; gap: 24px;
+    margin-bottom: 60px;
+  }
+  .cover-wordmark .name { color: var(--fg); font-size: 24px; letter-spacing: 0.05em; }
+  .cover-wordmark .x { color: var(--accent); }
+
+  .sec-header {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 80px;
+    flex: 1; align-items: end;
+  }
+  .sec-header.thesis-with-video {
+    grid-template-columns: 1fr 1.1fr;
+    align-items: center;
+  }
+  .sec-header .right { display: flex; flex-direction: column; gap: 36px; padding-bottom: 12px; }
+  .sec-header h1 { max-width: 14ch; }
+  .sec-header .lead { font-size: var(--type-body); color: var(--fg); line-height: 1.25; max-width: 24ch; }
+
+  .thesis-video { display: flex; flex-direction: column; gap: 24px; }
+  .video-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--line-2);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(158,128,225,0.18);
+    background: #000;
+  }
+  .video-frame iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border: 0;
+    display: block;
+  }
+  .video-caption {
+    display: flex; align-items: baseline; gap: 24px;
+    padding: 0 4px;
+  }
+  .video-tag {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 24px;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .video-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    letter-spacing: -0.03em;
+    color: var(--fg);
+  }
+
+  .video-full {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    margin-top: 20px;
+    padding-bottom: 60px;
+  }
+  .video-full-header {
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .video-full-title { max-width: 28ch; }
+  .video-frame-full {
+    flex: 1;
+    aspect-ratio: auto;
+    width: 100%;
+    min-height: 0;
+  }
+
+  .thesis-quote {
+    font-size: 72px;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    max-width: 20ch;
+    font-weight: 400;
+    margin-top: 60px;
+  }
+  .thesis-quote em { color: var(--accent); font-style: italic; font-weight: 400; }
+  .competes-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px;
+    margin-top: auto;
+  }
+  .competes-card {
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    padding: 32px 28px 36px;
+    display: flex; flex-direction: column; gap: 28px;
+    min-height: 220px;
+    background: linear-gradient(180deg, rgba(48,28,110,0.45), rgba(34,18,78,0.55));
+    backdrop-filter: blur(6px);
+  }
+  .competes-card .num {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+  .competes-card .word {
+    font-size: 44px;
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    margin-top: auto;
+  }
+
+  .gap-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    flex: 1;
+    align-items: center;
+    margin-top: 40px;
+  }
+  .gap-col h3 {
+    font-size: 44px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+    margin: 0 0 32px;
+  }
+  .gap-col.left h3 { color: var(--fg-dim); }
+  .gap-col.right h3 { color: var(--fg); }
+  .strike { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--fg-dim); opacity: 0.5; }
+
+  .closing-note {
+    margin-top: 60px;
+    font-size: var(--type-h2);
+    color: var(--accent);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  .funnel {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin-top: 80px;
+    border-top: 1px solid var(--line-2);
+    border-bottom: 1px solid var(--line-2);
+  }
+  .funnel-stage {
+    padding: 50px 32px 50px;
+    border-right: 1px solid var(--line-2);
+    display: flex; flex-direction: column; gap: 28px;
+    min-height: 280px;
+    position: relative;
+  }
+  .funnel-stage:last-child { border-right: none; }
+  .funnel-stage .step {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+  }
+  .funnel-stage .word {
+    font-size: 56px;
+    line-height: 0.95;
+    letter-spacing: -0.025em;
+    margin-top: auto;
+    color: var(--fg);
+  }
+  .funnel-stage .word.final { color: var(--accent); }
+  .funnel-stage .desc { color: var(--fg-mid); font-size: var(--type-small); line-height: 1.3; }
+
+  .verbs {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+    margin-top: auto;
+  }
+  .verb-card {
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    padding: 36px 36px 40px;
+    display: flex; align-items: baseline; gap: 28px;
+    background: linear-gradient(180deg, rgba(48,28,110,0.45), rgba(34,18,78,0.55));
+    backdrop-filter: blur(6px);
+  }
+  .verb-card .vnum {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-size: var(--type-small);
+    letter-spacing: 0.06em;
+    min-width: 48px;
+  }
+  .verb-card .vbody {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .verb-card .vw {
+    font-size: 48px;
+    letter-spacing: -0.025em;
+    line-height: 1.0;
+    font-weight: 500;
+  }
+  .verb-card .vsub {
+    font-size: var(--type-small); color: var(--fg-mid); line-height: 1.3;
+  }
+
+  .athletes-photo {
+    margin-top: auto;
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--line-2);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6);
+  }
+  .athletes-photo img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .athletes {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+    margin-top: auto;
+  }
+  .athlete-card {
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    background: linear-gradient(180deg, rgba(48,28,110,0.55), rgba(34,18,78,0.65));
+    backdrop-filter: blur(8px);
+    min-height: 540px;
+  }
+  .athlete-img {
+    flex: 1;
+    background:
+      repeating-linear-gradient(135deg, rgba(199,182,255,0.05) 0 14px, transparent 14px 28px),
+      linear-gradient(180deg, rgba(60,38,130,0.45), rgba(34,18,78,0.55));
+    display: flex; align-items: center; justify-content: center;
+    color: var(--fg-mid);
+    font-family: var(--font-mono);
+    font-size: 24px;
+    line-height: 1.4;
+    letter-spacing: 0.06em;
+    text-align: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .athlete-meta {
+    padding: 22px 22px 26px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .athlete-meta .id {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-size: 24px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .athlete-meta .name {
+    font-size: 28px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    font-weight: 500;
+  }
+  .athlete-meta .sport {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--fg-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .pillars {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-top: auto;
+  }
+  .pillar-card {
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    padding: 32px 28px 36px;
+    display: flex; flex-direction: column; gap: 20px;
+    min-height: 360px;
+    background: linear-gradient(180deg, rgba(48,28,110,0.45), rgba(34,18,78,0.55));
+    backdrop-filter: blur(6px);
+  }
+  .pillar-card .pnum {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-size: 24px;
+    letter-spacing: 0.06em;
+  }
+  .pillar-card .ptitle {
+    font-size: 32px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    margin-top: auto;
+    font-weight: 500;
+  }
+  .pillar-card .pdesc {
+    font-size: 24px;
+    color: var(--fg-mid);
+    line-height: 1.4;
+  }
+
+  .pillar-detail {
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: 80px;
+    flex: 1;
+    margin-top: 40px;
+  }
+  .pillar-detail .lead { font-size: var(--type-body); color: var(--fg-mid); line-height: 1.35; max-width: 22ch; }
+  .pillar-detail h1 { max-width: 16ch; }
+  .pillar-detail .list-cols {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px 40px;
+    align-content: start;
+    padding-top: 80px;
+  }
+  .pillar-detail .list-cols li {
+    list-style: none;
+    font-size: 26px;
+    color: var(--fg);
+    padding-left: 28px;
+    position: relative;
+    line-height: 1.25;
+  }
+  .pillar-detail .list-cols li::before {
+    content: ""; position: absolute; left: 0; top: 0.55em;
+    width: 12px; height: 1px; background: var(--accent);
+  }
+  .pillar-step {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 32px;
+  }
+
+  .pricing-table {
+    margin-top: 40px;
+    border-top: 1px solid var(--line-2);
+  }
+  .pricing-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr;
+    border-bottom: 1px solid var(--line-2);
+    padding: 28px 0;
+    align-items: baseline;
+  }
+  .pricing-row.head {
+    padding: 22px 0;
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--fg-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .pricing-row .svc { font-size: 34px; color: var(--fg); font-weight: 500; letter-spacing: -0.015em; }
+  .pricing-row .svc small { display: block; font-size: 24px; color: var(--fg-dim); font-family: var(--font-mono); margin-top: 8px; letter-spacing: 0.06em; }
+  .pricing-row .num { font-family: var(--font-mono); font-size: 40px; color: var(--fg); letter-spacing: -0.01em; }
+  .pricing-row .num.partner { color: var(--accent); }
+  .pricing-row .num small { display: block; font-size: 24px; color: var(--fg-dim); margin-top: 8px; letter-spacing: 0.06em; }
+
+  .totals {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-top: 44px;
+  }
+  .total-card {
+    border: 1px solid var(--line-2);
+    padding: 36px 44px 40px;
+    border-radius: 8px;
+    display: flex; flex-direction: column; gap: 16px;
+    min-height: 280px;
+    background: linear-gradient(180deg, rgba(48,28,110,0.55), rgba(34,18,78,0.65));
+    backdrop-filter: blur(6px);
+  }
+  .total-card.partner {
+    background: linear-gradient(135deg, #8A6BFF 0%, #5B3FE0 100%);
+    color: #FFFFFF;
+    border-color: rgba(255,255,255,0.18);
+  }
+  .total-card .lbl {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+  }
+  .total-card.partner .lbl { color: rgba(255,255,255,0.7); }
+  .total-card .price {
+    font-family: var(--font-display);
+    font-size: 112px;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    font-weight: 500;
+    margin-top: auto;
+  }
+  .total-card .per {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--fg-dim);
+    letter-spacing: 0.04em;
+  }
+  .total-card.partner .per { color: rgba(255,255,255,0.75); }
+  .invest-slide .pricing-table { margin-top: 28px; }
+  .invest-slide .pricing-row { padding: 22px 0; }
+  .invest-slide .pricing-row.head { padding: 18px 0; }
+  .invest-slide .totals { margin-top: 30px; }
+  .invest-slide .total-card { padding: 28px 44px 32px; }
+  .invest-slide .total-card .price { font-size: 92px; }
+  .total-card .save {
+    display: inline-block;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 100px;
+    padding: 10px 20px;
+    font-family: var(--font-mono);
+    font-size: 24px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    align-self: flex-start;
+    white-space: nowrap;
+  }
+
+  .addons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-top: 40px;
+  }
+  .addon-card {
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    padding: 36px 36px 40px;
+    display: flex; flex-direction: column; gap: 20px;
+    min-height: 460px;
+    background: linear-gradient(180deg, rgba(48,28,110,0.45), rgba(34,18,78,0.55));
+    backdrop-filter: blur(6px);
+  }
+  .addon-card .lbl {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-size: 24px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .addon-card .ttl {
+    font-size: 38px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+    max-width: 14ch;
+  }
+  .addon-card .desc {
+    font-size: 24px;
+    color: var(--fg-mid);
+    line-height: 1.4;
+  }
+  .addon-card .tag-grid {
+    display: flex; flex-wrap: wrap; gap: 10px 12px;
+    margin-top: auto;
+  }
+  .addon-card .tag {
+    border: 1px solid var(--line-2);
+    border-radius: 100px;
+    padding: 8px 16px;
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--fg);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .unlocks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    margin-top: 40px;
+    border-top: 1px solid var(--line-2);
+    border-left: 1px solid var(--line-2);
+  }
+  .unlock {
+    border-right: 1px solid var(--line-2);
+    border-bottom: 1px solid var(--line-2);
+    padding: 32px 44px 32px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .unlock .un { font-family: var(--font-mono); font-size: 24px; color: var(--accent); letter-spacing: 0.08em; }
+  .unlock .ut { font-size: 34px; letter-spacing: -0.025em; line-height: 1.05; font-weight: 400; font-family: var(--font-display); }
+  .unlock .ud { font-size: 24px; color: var(--fg-mid); line-height: 1.4; max-width: 26ch; }
+
+  .vision {
+    flex: 1;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  .vision-line-1 {
+    font-family: var(--font-mono);
+    font-size: 34px;
+    color: var(--fg-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .vision-arrow {
+    font-size: 56px;
+    color: var(--accent);
+    line-height: 1;
+    margin: 24px 0;
+  }
+  .vision-line-2 {
+    font-size: 120px;
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    font-weight: 500;
+    max-width: 18ch;
+  }
+  .vision-line-2 em { color: var(--accent); font-style: italic; font-weight: 400; }
+  .vision-foot {
+    margin-top: 60px;
+    font-size: var(--type-body);
+    color: var(--fg-mid);
+    line-height: 1.4;
+    max-width: 50ch;
+  }
+
+  .close {
+    background-image:
+      radial-gradient(80% 60% at 50% 100%, rgba(199,182,255,0.20), transparent 60%),
+      url("assets/bg-stoyco.png") !important;
+  }
+  .close-grid {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    align-items: center; text-align: center; gap: 48px;
+  }
+  .close-title {
+    font-size: 140px;
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    font-weight: 500;
+    max-width: 16ch;
+  }
+  .close-title em { color: var(--accent); font-style: italic; font-weight: 400; }
+  .close-foot {
+    display: flex; gap: 80px;
+    font-family: var(--font-mono);
+    font-size: var(--type-small);
+    color: var(--fg-mid);
+    margin-top: 20px;
+    letter-spacing: 0.04em;
+  }
+  .close-foot .k { color: var(--fg-dim); font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+  .close-foot .v { color: var(--fg); }
+
+  .ao-intro {
+    margin-top: 30px;
+    max-width: 38ch;
+    font-size: var(--type-body);
+    color: var(--fg-mid);
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── Password gate ────────────────────────────────────────────────── -->
+<div id="gate">
+  <div class="wordmark">STOYCO <span class="sep">×</span> RIMAS SPORTS</div>
+  <form id="gate-form" onsubmit="return false;">
+    <input
+      id="gate-input"
+      type="password"
+      placeholder="ACCESS CODE"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button type="submit" onclick="checkPassword()">ENTER</button>
+    <div class="err" id="gate-err"></div>
+  </form>
+</div>
+
+<div id="deck">
+<deck-stage width="1920" height="1080">
+
+  <!-- ============ 1: COVER ============ -->
+  <section data-label="01 Cover" class="cover">
+    <div class="cover-wordmark">
+      <span class="name">STOYCO</span>
+      <span class="x">×</span>
+      <span class="name">RIMAS&nbsp;SPORTS</span>
+      <span style="flex:1"></span>
+      <span>PROPOSAL · 2026 / 001</span>
+    </div>
+
+    <div class="cover-grid">
+      <div>
+        <div class="label-row" style="margin-bottom: 36px;">
+          <span class="bar"></span>
+          <span>Confidential — Partnership Brief</span>
+        </div>
+        <h1 class="cover-title">
+          <span class="line">Fandom</span>
+          <span class="line">Development</span>
+          <span class="line accent">Infrastructure.</span>
+        </h1>
+      </div>
+
+      <div class="cover-meta">
+        <div>
+          <div class="k">Subject</div>
+          <div class="v">Building, Activating &amp;<br/>Monetizing Athlete Fandoms</div>
+        </div>
+        <div>
+          <div class="k">Prepared for</div>
+          <div class="v">Rimas Sports</div>
+        </div>
+        <div>
+          <div class="k">Prepared by</div>
+          <div class="v">StoyCo</div>
+        </div>
+        <div>
+          <div class="k">Scope</div>
+          <div class="v">5 athletes · monthly retainer<br/>+ custom add-ons</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 2: 01 STRATEGIC THESIS ============ -->
+  <section data-label="02 Strategic Thesis">
+    <aside class="rail">
+      <span class="label">— STRATEGIC THESIS</span>
+      <span class="num">-01</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="sec-header">
+      <div>
+        <div class="label-row" style="margin-bottom: 40px;">
+          <span class="bar"></span>
+          <span>Section One</span>
+        </div>
+        <div class="sec-num">01<span class="slash">/</span></div>
+        <h1 class="slide-title" style="margin-top: 32px;">Strategic Thesis</h1>
+        <p class="lead" style="margin-top: 32px;">El atleta moderno ya no compite únicamente en el deporte. Compite por atención, relevancia cultural, comunidad y <span class="accent">ownership de audiencia</span>.</p>
+        <p class="lead" style="margin-top: 20px;">Las redes generan alcance — pero no ownership. Esa capa la construye StoyCo.</p>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 3: FULL-SLIDE VIDEO ============ -->
+  <section data-label="03 Video">
+    <aside class="rail">
+      <span class="label">— STRATEGIC THESIS</span>
+      <span class="num">-01</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="video-full">
+      <div class="video-full-header">
+        <div class="label-row">
+          <span class="bar"></span>
+          <span>1.1 Watch · 01</span>
+        </div>
+        <h2 class="slide-sub video-full-title">A all-in-one infrastructure for athletes</h2>
+      </div>
+      <div class="video-frame video-frame-full">
+        <iframe
+          src="https://drive.google.com/file/d/1XmR6AJzwyHaG4_DemIkFhpdzARRAGUZj/preview"
+          allow="autoplay; encrypted-media"
+          allowfullscreen
+          referrerpolicy="no-referrer"
+          title="Strategic Thesis video"
+        ></iframe>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 4: THE SOCIAL MEDIA GAP ============ -->
+  <section data-label="04 The Gap">
+    <aside class="rail">
+      <span class="label">— STRATEGIC THESIS</span>
+      <span class="num">-01</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="label-row" style="margin-top: 20px;">
+      <span class="bar"></span>
+      <span>1.2 What Social Media Doesn't Deliver</span>
+    </div>
+
+    <h1 class="slide-title" style="margin-top: 36px; max-width: 22ch;">Las redes generan <span class="dim">alcance</span> — no infraestructura.</h1>
+
+    <div class="gap-grid">
+      <div class="gap-col left">
+        <h3 class="mono upper" style="font-size: 24px; color: var(--fg-dim); letter-spacing: 0.1em;">Lo que las redes sí dan</h3>
+        <div style="font-size: 88px; line-height: 0.95; letter-spacing: -0.03em; color: var(--fg-dim);">Alcance.<br/>Impresiones.<br/>Algoritmo.</div>
+      </div>
+      <div class="gap-col right">
+        <h3 class="mono upper" style="font-size: 24px; color: var(--accent); letter-spacing: 0.1em;">Lo que no generan</h3>
+        <ul class="clean">
+          <li>Ownership</li>
+          <li>First-party data</li>
+          <li>Monetización directa</li>
+          <li>Infraestructura de fandom</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="closing-note">→ Ahí entra StoyCo.</div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 5: 02 OPPORTUNITY ============ -->
+  <section data-label="05 The Opportunity">
+    <aside class="rail">
+      <span class="label">— THE OPPORTUNITY</span>
+      <span class="num">-02</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="sec-header">
+      <div>
+        <div class="label-row" style="margin-bottom: 40px;">
+          <span class="bar"></span>
+          <span>Section Two</span>
+        </div>
+        <div class="sec-num">02<span class="slash">/</span></div>
+        <h1 class="slide-title" style="margin-top: 40px;">The Opportunity</h1>
+      </div>
+      <div class="right">
+        <p class="lead">Rimas Sports tiene uno de los rosters latinos con mayor relevancia cultural y crecimiento digital del mundo.</p>
+        <p class="lead">Pero la relación con la audiencia sigue dependiendo de plataformas third-party — y gran parte del valor no se captura directamente.</p>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 6: CONVERSION FUNNEL ============ -->
+  <section data-label="06 Conversion">
+    <aside class="rail">
+      <span class="label">— THE OPPORTUNITY</span>
+      <span class="num">-02</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="label-row" style="margin-top: 20px;">
+      <span class="bar"></span>
+      <span>2.1 The Conversion We're Building</span>
+    </div>
+
+    <h1 class="slide-title" style="margin-top: 32px; max-width: 24ch;">From audience to ownership — one infrastructure, four stages.</h1>
+
+    <div class="funnel">
+      <div class="funnel-stage">
+        <span class="step">Stage 01</span>
+        <span class="desc">Reach &amp; awareness across third-party platforms.</span>
+        <span class="word">Audience</span>
+      </div>
+      <div class="funnel-stage">
+        <span class="step">Stage 02</span>
+        <span class="desc">Identified fans inside a dedicated, owned space.</span>
+        <span class="word">Community</span>
+      </div>
+      <div class="funnel-stage">
+        <span class="step">Stage 03</span>
+        <span class="desc">First-party data, behavior, segmentation, CRM.</span>
+        <span class="word">Data</span>
+      </div>
+      <div class="funnel-stage">
+        <span class="step">Stage 04</span>
+        <span class="desc">Direct revenue from experiences, drops, memberships.</span>
+        <span class="word final">Monetization</span>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 7: 03 THE STOYCO LAYER ============ -->
+  <section data-label="07 StoyCo Layer">
+    <aside class="rail">
+      <span class="label">— THE STOYCO LAYER</span>
+      <span class="num">-03</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 80px; flex: 1; align-items: end;">
+      <div>
+        <div class="label-row" style="margin-bottom: 40px;">
+          <span class="bar"></span>
+          <span>Section Three</span>
+        </div>
+        <div class="sec-num">03<span class="slash">/</span></div>
+        <h1 class="slide-title" style="margin-top: 40px;">The StoyCo Layer</h1>
+        <p class="lead" style="margin-top: 36px; max-width: 26ch;">Una infraestructura <span class="accent">phygital</span> diseñada para convertir atención en relación directa entre atleta y fan.</p>
+      </div>
+
+      <div class="verbs">
+        <div class="verb-card">
+          <span class="vnum">/ 01</span>
+          <div class="vbody">
+            <span class="vw">Construir</span>
+            <span class="vsub">Fandoms con identidad propia.</span>
+          </div>
+        </div>
+        <div class="verb-card">
+          <span class="vnum">/ 02</span>
+          <div class="vbody">
+            <span class="vw">Activar</span>
+            <span class="vsub">Comunidades 365 días al año.</span>
+          </div>
+        </div>
+        <div class="verb-card">
+          <span class="vnum">/ 03</span>
+          <div class="vbody">
+            <span class="vw">Capturar</span>
+            <span class="vsub">First-party data accionable.</span>
+          </div>
+        </div>
+        <div class="verb-card" style="border-color: var(--accent);">
+          <span class="vnum">/ 04</span>
+          <div class="vbody">
+            <span class="vw accent">Monetizar</span>
+            <span class="vsub">Relaciones directas talento ↔ fan.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 8: 04 PARTNERSHIP SCOPE — Athletes ============ -->
+  <section data-label="08 Featured Athletes">
+    <aside class="rail">
+      <span class="label">— PARTNERSHIP SCOPE</span>
+      <span class="num">-04</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="label-row" style="margin-top: 20px;">
+      <span class="bar"></span>
+      <span>4.0 Featured Athletes — 5 of the most culturally relevant Latin athletes</span>
+    </div>
+
+    <h1 class="slide-title" style="margin-top: 28px; max-width: 28ch;">Cinco atletas. Una capa de fandom unificada.</h1>
+
+    <div class="athletes-photo">
+      <img src="assets/athletes.jpg" alt="Featured athletes — Agustín Tapia, Fernando Tatis Jr., Ronald Acuña Jr., Xander Zayas, Sebastián Montoya" />
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 9: 05 FANDOM DEVELOPMENT SERVICE OVERVIEW ============ -->
+  <section data-label="09 Service Overview">
+    <aside class="rail">
+      <span class="label">— FANDOM DEVELOPMENT</span>
+      <span class="num">-05</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="label-row" style="margin-top: 20px;">
+      <span class="bar"></span>
+      <span>5.0 Included Per Athlete</span>
+    </div>
+
+    <h1 class="slide-title" style="margin-top: 28px; max-width: 22ch;">Cuatro pilares que construyen un fandom completo.</h1>
+
+    <div class="pillars">
+      <div class="pillar-card">
+        <span class="pnum">PILLAR / 01</span>
+        <span class="pdesc">Espacio dedicado dentro del ecosistema StoyCo: identidad, engagement mechanics y dinámicas de participación.</span>
+        <span class="ptitle">Dedicated Fandom Infrastructure</span>
+      </div>
+      <div class="pillar-card">
+        <span class="pnum">PILLAR / 02</span>
+        <span class="pdesc">Landing mensual de captación: registro, activaciones, drops, ticketing y contenido exclusivo.</span>
+        <span class="ptitle">Monthly Fan Data Collection</span>
+      </div>
+      <div class="pillar-card">
+        <span class="pnum">PILLAR / 03</span>
+        <span class="pdesc">Narrativa multicanal hacia el fandom central: push, email, WhatsApp, social, engagement journeys.</span>
+        <span class="ptitle">Multichannel Communication</span>
+      </div>
+      <div class="pillar-card" style="border-color: var(--accent);">
+        <span class="pnum">PILLAR / 04</span>
+        <span class="pdesc">Diseño de loops y activaciones culturales. Conversión Audience → Super Fan, con segmentación por comportamiento.</span>
+        <span class="ptitle accent">Community Development</span>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 10: PILLAR 01 DETAIL ============ -->
+  <section data-label="10 Pillar I — Infrastructure">
+    <aside class="rail">
+      <span class="label">— FANDOM DEVELOPMENT</span>
+      <span class="num">-05</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="pillar-detail">
+      <div>
+        <div class="pillar-step">PILLAR / 01</div>
+        <h1 class="slide-title">Dedicated Fandom Infrastructure</h1>
+        <p class="lead" style="margin-top: 36px;">Cada atleta recibe un espacio dedicado dentro del ecosistema StoyCo — su propia capa de identidad, comunidad y participación.</p>
+      </div>
+      <ul class="list-cols">
+        <li>Espacio dedicado en StoyCo</li>
+        <li>Community building</li>
+        <li>Engagement mechanics</li>
+        <li>Dinámicas de participación</li>
+        <li>Fan identity layer</li>
+        <li>Behavioral hooks</li>
+      </ul>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 11: PILLAR 02 DETAIL ============ -->
+  <section data-label="11 Pillar II — Data">
+    <aside class="rail">
+      <span class="label">— FANDOM DEVELOPMENT</span>
+      <span class="num">-05</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="pillar-detail">
+      <div>
+        <div class="pillar-step">PILLAR / 02</div>
+        <h1 class="slide-title">Monthly Fan Data Collection</h1>
+        <p class="lead" style="margin-top: 36px;">Una landing activa cada mes — diseñada para captar first-party data, registrar fans y operar activaciones.</p>
+        <p class="lead" style="margin-top: 22px; color: var(--fg-dim);">Incluye UX/UI personalizado, tracking, analytics y CRM integration.</p>
+      </div>
+      <ul class="list-cols">
+        <li>First-party data</li>
+        <li>Fan registration</li>
+        <li>Activaciones</li>
+        <li>Campañas &amp; drops</li>
+        <li>Experiencias</li>
+        <li>Giveaways</li>
+        <li>Ticketing</li>
+        <li>Contenido exclusivo</li>
+      </ul>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 12: PILLAR 03 DETAIL ============ -->
+  <section data-label="12 Pillar III — Communication">
+    <aside class="rail">
+      <span class="label">— FANDOM DEVELOPMENT</span>
+      <span class="num">-05</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="pillar-detail">
+      <div>
+        <div class="pillar-step">PILLAR / 03</div>
+        <h1 class="slide-title">Multichannel Communication</h1>
+        <p class="lead" style="margin-top: 36px;">Narrativa y comunicación directa hacia el fandom central — propiedad del talento, no del algoritmo.</p>
+      </div>
+      <ul class="list-cols">
+        <li>Push notifications</li>
+        <li>Email marketing</li>
+        <li>WhatsApp strategy</li>
+        <li>Social amplification</li>
+        <li>Engagement journeys</li>
+        <li>Lifecycle automation</li>
+      </ul>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 13: PILLAR 04 DETAIL ============ -->
+  <section data-label="13 Pillar IV — Community">
+    <aside class="rail">
+      <span class="label">— FANDOM DEVELOPMENT</span>
+      <span class="num">-05</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="pillar-detail">
+      <div>
+        <div class="pillar-step">PILLAR / 04</div>
+        <h1 class="slide-title">Community Development</h1>
+        <p class="lead" style="margin-top: 36px;">El trabajo cultural — convertir audiencia en super fan, con loops, activaciones y segmentación por comportamiento.</p>
+      </div>
+      <ul class="list-cols">
+        <li>Fandom mechanics design</li>
+        <li>Engagement loops</li>
+        <li>Activaciones culturales</li>
+        <li>Audience → Super Fan</li>
+        <li>Behavioral segmentation</li>
+        <li>Retention strategy</li>
+      </ul>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 14: 06 PRICING + TOTAL ============ -->
+  <section data-label="14 Pricing">
+    <aside class="rail">
+      <span class="label">— PRICING STRUCTURE</span>
+      <span class="num">-06</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="label-row" style="margin-top: 20px;">
+      <span class="bar"></span>
+      <span>6.0 Per-Athlete Rate &amp; Total Monthly</span>
+    </div>
+
+    <h1 class="slide-title" style="margin-top: 28px; max-width: 22ch;">Pricing structure</h1>
+
+    <div class="pricing-table">
+      <div class="pricing-row head">
+        <span>Service</span>
+        <span>Standard Rate</span>
+        <span>Strategic Partner Rate</span>
+      </div>
+      <div class="pricing-row">
+        <span class="svc">Fandom Development Service<small>per athlete · monthly</small></span>
+        <span class="num">$4,500<small>USD / athlete</small></span>
+        <span class="num partner">$3,000<small>USD / athlete · −33%</small></span>
+      </div>
+    </div>
+
+    <div class="totals">
+      <div class="total-card">
+        <span class="lbl">Standard Total — 5 athletes</span>
+        <span class="price">$22,500</span>
+        <span class="per">USD / month</span>
+      </div>
+      <div class="total-card partner">
+        <span class="lbl">Strategic Partner — 5 athletes</span>
+        <span class="price">$15,000</span>
+        <span class="per">USD / month</span>
+        <span class="save">Save $7,500 / mo · −33%</span>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 15: 06b INVESTMENT ============ -->
+  <section data-label="15 Investment" class="invest-slide">
+    <aside class="rail">
+      <span class="label">— INVESTMENT</span>
+      <span class="num">-06</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="label-row" style="margin-top: 20px;">
+      <span class="bar"></span>
+      <span>6.1 Setup &amp; Monthly Management</span>
+    </div>
+
+    <h1 class="slide-title" style="margin-top: 28px; max-width: 22ch;">Investment</h1>
+
+    <div class="pricing-table">
+      <div class="pricing-row head">
+        <span>Component</span>
+        <span>Rate</span>
+        <span>Total</span>
+      </div>
+      <div class="pricing-row">
+        <span class="svc">One-Time Setup<small>per account · single payment</small></span>
+        <span class="num">$1,500<small>USD / account</small></span>
+        <span class="num">$7,500<small>5 accounts</small></span>
+      </div>
+      <div class="pricing-row">
+        <span class="svc">Fandom Management Fee<small>monthly · up to 5 active accounts</small></span>
+        <span class="num">$6,000<small>USD / month</small></span>
+        <span class="num">$6,000<small>flat</small></span>
+      </div>
+    </div>
+
+    <div class="totals">
+      <div class="total-card">
+        <span class="lbl">Setup — 5 accounts</span>
+        <span class="price">$7,500</span>
+        <span class="per">USD · one-time payment</span>
+      </div>
+      <div class="total-card partner">
+        <span class="lbl">Fandom Management</span>
+        <span class="price">$6,000</span>
+        <span class="per">USD / month · up to 5 active accounts</span>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 16: 07 CUSTOM ADD-ONS ============ -->
+  <section data-label="16 Custom Add-Ons">
+    <aside class="rail">
+      <span class="label">— CUSTOM ADD-ONS</span>
+      <span class="num">-07</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="label-row" style="margin-top: 20px;">
+      <span class="bar"></span>
+      <span>7.0 Beyond the Retainer — Quoted Separately</span>
+    </div>
+
+    <h1 class="slide-title" style="margin-top: 28px; max-width: 26ch;">Two add-on tracks for scaling fandom into revenue.</h1>
+
+    <div class="addons">
+      <div class="addon-card">
+        <span class="lbl">Track A</span>
+        <span class="ttl">Fan Landing Ecosystem</span>
+        <span class="desc">Ecosistema de captación y activación para drops, launches, sponsor activations y fan journeys. Custom UX/UI, copy, automation, analytics, CRM.</span>
+        <div class="tag-grid">
+          <span class="tag">pre-saves</span>
+          <span class="tag">merch drops</span>
+          <span class="tag">meet &amp; greets</span>
+          <span class="tag">fan experiences</span>
+          <span class="tag">sponsor activations</span>
+          <span class="tag">collectibles</span>
+          <span class="tag">launches</span>
+          <span class="tag">fan journeys</span>
+        </div>
+      </div>
+      <div class="addon-card" style="border-color: var(--accent-2);">
+        <span class="lbl" style="color: var(--accent-2);">Track B</span>
+        <span class="ttl">Physical &amp; Digital Production</span>
+        <span class="desc">Producción y operación de experiencias y contenido — convertir fandom en experiencias, comunidad, revenue y cultura.</span>
+        <div class="tag-grid">
+          <span class="tag">experiencias físicas</span>
+          <span class="tag">activaciones digitales</span>
+          <span class="tag">contenido</span>
+          <span class="tag">merchandise</span>
+          <span class="tag">collectible assets</span>
+          <span class="tag">livestreams</span>
+          <span class="tag">watch parties</span>
+          <span class="tag">community events</span>
+          <span class="tag">sponsor integrations</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 17: 08 STRATEGIC VALUE ============ -->
+  <section data-label="17 Strategic Value">
+    <aside class="rail">
+      <span class="label">— STRATEGIC VALUE</span>
+      <span class="num">-08</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="label-row" style="margin-top: 20px;">
+      <span class="bar"></span>
+      <span>8.0 What This Unlocks for Rimas Sports</span>
+    </div>
+
+    <h1 class="slide-title" style="margin-top: 28px; max-width: 26ch;">Four unlocks no traditional agency can replicate.</h1>
+
+    <div class="unlocks">
+      <div class="unlock">
+        <span class="un">UNLOCK / 01</span>
+        <span class="ut">Audience Ownership</span>
+        <span class="ud">First-party data layer y relación directa con la audiencia — no intermediada por algoritmos.</span>
+      </div>
+      <div class="unlock">
+        <span class="un">UNLOCK / 02</span>
+        <span class="ut">Always-On Infrastructure</span>
+        <span class="ud">Activa 365 días al año. No dependiente del calendario deportivo ni de momentos puntuales.</span>
+      </div>
+      <div class="unlock">
+        <span class="un">UNLOCK / 03</span>
+        <span class="ut">Monetization Layer</span>
+        <span class="ud">Memberships, experiencias, partnerships, commerce, collectibles y drops — todo desde una capa propia.</span>
+      </div>
+      <div class="unlock" style="background: linear-gradient(135deg, rgba(199,182,255,0.10), rgba(138,107,255,0.06));">
+        <span class="un">UNLOCK / 04</span>
+        <span class="ut accent">Cultural Flywheel</span>
+        <span class="ud">Música + deporte + fandom + comunidad + experiencias. Una ventaja cultural difícil de replicar.</span>
+      </div>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+
+  <!-- ============ 18: 09 LONG-TERM VISION / CLOSE ============ -->
+  <section data-label="18 Vision" class="close">
+    <aside class="rail">
+      <span class="label">— LONG-TERM VISION</span>
+      <span class="num">-09</span>
+      <span class="mark"></span>
+    </aside>
+
+    <div class="vision">
+      <span class="vision-line-1">From Sports Management</span>
+      <span class="vision-arrow">↓</span>
+      <h1 class="vision-line-2">To <em>Cultural Infrastructure</em>.</h1>
+      <p class="vision-foot">Rimas Sports tiene la oportunidad de convertirse en la plataforma cultural-deportiva latina más relevante del mundo — conectando atletas, música y fandoms bajo una misma capa de comunidad y distribución. <span class="accent">StoyCo construye esa capa.</span></p>
+    </div>
+
+    <div class="foot"><div class="left"></div><div class="right"></div></div>
+  </section>
+
+</deck-stage>
+</div>
+
+<script>
+  function checkPassword() {
+    const val = document.getElementById('gate-input').value;
+    if (val === 'EnterTech') {
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('deck').style.visibility = 'visible';
+      sessionStorage.setItem('rs_auth', '1');
+    } else {
+      const err = document.getElementById('gate-err');
+      err.textContent = 'INCORRECT ACCESS CODE';
+      document.getElementById('gate-input').value = '';
+      document.getElementById('gate-input').focus();
+      setTimeout(() => { err.textContent = ''; }, 2500);
+    }
+  }
+
+  document.getElementById('gate-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') checkPassword();
+  });
+
+  if (sessionStorage.getItem('rs_auth') === '1') {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('deck').style.visibility = 'visible';
+  }
+</script>
+</body>
+</html>
